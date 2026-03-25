@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropostaRápida - Gerador de Propostas Profissionais</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <header class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>PropostaRápida</span>
+            </div>
+            <nav class="navbar-nav">
+                <a href="#funcionalidades">Funcionalidades</a>
+                <a href="#precos">Preços</a>
+                <a href="app.html">Login</a>
+                <button class="btn btn-primary" onclick="window.location.href='app.html'">Começar Agora</button>
+            </nav>
+            <button class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="badge">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                    </svg>
+                    Aprovado por +2.000 freelancers
+                </div>
+                <h1>Crie propostas profissionais em <span class="highlight">minutos</span></h1>
+                <p>A plataforma ideal para freelancers e pequenas agências no Brasil gerarem propostas impecáveis com rapidez e fecharem mais negócios.</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary btn-lg" onclick="window.location.href='app.html'">Começar Agora — Grátis</button>
+                    <button class="btn btn-outline btn-lg">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"></path>
+                        </svg>
+                        Ver demonstração
+                    </button>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="mockup">
+                    <div class="mockup-header">
+                        <div class="dot red"></div>
+                        <div class="dot yellow"></div>
+                        <div class="dot green"></div>
+                    </div>
+                    <div class="mockup-content">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23f0f0f0' width='400' height='300'/%3E%3Ctext x='50%' y='50%' font-size='24' fill='%23999' text-anchor='middle' dominant-baseline='middle'%3EDashboard Preview%3C/text%3E%3C/svg%3E" alt="Dashboard Preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social Proof -->
+    <section class="social-proof">
+        <div class="container">
+            <p class="section-label">Confiado por profissionais das melhores áreas</p>
+            <div class="logos-grid">
+                <span>Designers</span>
+                <span>Desenvolvedores</span>
+                <span>Marketing</span>
+                <span>Copywriters</span>
+                <span>Arquitetos</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="funcionalidades">
+        <div class="container">
+            <div class="section-header">
+                <p class="section-label">Como funciona</p>
+                <h2>Três passos para o sucesso</h2>
+                <p class="section-description">Simplificamos o processo de criação de propostas para que você possa focar no que realmente importa: seu trabalho.</p>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M2 12h20"></path>
+                        </svg>
+                    </div>
+                    <h3>1. Escolha o Template</h3>
+                    <p>Selecione entre diversos modelos profissionais otimizados para diferentes nichos do mercado brasileiro.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </div>
+                    <h3>2. Preencha os Dados</h3>
+                    <p>Adicione seus serviços, prazos e valores de forma simples. O sistema calcula impostos e totais automaticamente.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        </svg>
+                    </div>
+                    <h3>3. Envie para o Cliente</h3>
+                    <p>Gere um link interativo ou PDF e envie diretamente. Receba notificações quando o cliente visualizar.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Pronto para fechar mais negócios e profissionalizar sua marca?</h2>
+            <p>Junte-se a centenas de profissionais que já usam o PropostaRápida para impressionar seus clientes desde o primeiro contato.</p>
+            <div class="cta-buttons">
+                <button class="btn btn-white" onclick="window.location.href='app.html'">Experimentar Grátis</button>
+                <button class="btn btn-outline-white">Falar com especialista</button>
+            </div>
+            <p class="cta-note">Sem cartão de crédito. Teste grátis por 14 dias.</p>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="precos">
+        <div class="container">
+            <div class="section-header">
+                <h2>Preços Simples e Transparentes</h2>
+                <p class="section-description">Acesso vitalício a todas as funcionalidades</p>
+            </div>
+            <div class="pricing-card">
+                <h3>Plano Único</h3>
+                <div class="price">R$ 39,90</div>
+                <p class="price-note">Pagamento único • Acesso vitalício</p>
+                <a href="https://www.asaas.com/c/rtuq2exjn5ni1e82" target="_blank" class="btn btn-primary btn-lg">Comprar Agora — R$39,90</a>
+                <div class="benefits">
+                    <div class="benefit">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                        </svg>
+                        Criar propostas ilimitadas
+                    </div>
+                    <div class="benefit">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                        </svg>
+                        Templates profissionais
+                    </div>
+                    <div class="benefit">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                        </svg>
+                        Exportar em PDF
+                    </div>
+                    <div class="benefit">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                        </svg>
+                        Funciona offline
+                    </div>
+                    <div class="benefit">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                        </svg>
+                        Suporte por email
+                    </div>
+                    <div class="benefit">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+                        </svg>
+                        Acesso vitalício
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <div class="footer-logo">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>PropostaRápida</span>
+                    </div>
+                    <p>A solução definitiva para criação de propostas comerciais de alto impacto no Brasil. Rápido, simples e profissional.</p>
+                </div>
+                <div class="footer-column">
+                    <h4>Plataforma</h4>
+                    <ul>
+                        <li><a href="#funcionalidades">Funcionalidades</a></li>
+                        <li><a href="#precos">Preços</a></li>
+                        <li><a href="app.html">Dashboard</a></li>
+                        <li><a href="#">Templates</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4>Suporte</h4>
+                    <ul>
+                        <li><a href="#">Central de Ajuda</a></li>
+                        <li><a href="#">Contato</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Termos de Uso</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2024 PropostaRápida. Todos os direitos reservados. Feito no Brasil.</p>
+                <div class="footer-links">
+                    <a href="#">Privacidade</a>
+                    <a href="#">Cookies</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

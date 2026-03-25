@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropostaRápida - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-body">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>PropostaRápida</span>
+            </div>
+            <div class="user-info">
+                <p class="user-name">Usuário</p>
+                <p class="user-plan">Plano Único</p>
+            </div>
+        </div>
+
+        <nav class="sidebar-menu">
+            <a href="#" class="menu-item active" data-view="dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="menu-item" data-view="editor">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"></path>
+                </svg>
+                <span>Nova Proposta</span>
+            </a>
+            <a href="#" class="menu-item" data-view="clients">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Clientes</span>
+            </a>
+            <a href="#" class="menu-item" data-view="templates">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="9" y1="9" x2="15" y2="9"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                <span>Templates</span>
+            </a>
+            <a href="#" class="menu-item" data-view="settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+                </svg>
+                <span>Configurações</span>
+            </a>
+        </nav>
+
+        <button class="btn btn-primary btn-block sidebar-cta" id="newProposalBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Nova Proposta
+        </button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard View -->
+        <div class="view" id="dashboard-view">
+            <div class="view-header">
+                <h1>Dashboard Overview</h1>
+                <p>Acompanhe suas propostas e métricas em tempo real</p>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Propostas Ativas</div>
+                    <div class="metric-value" id="metric-active">0</div>
+                    <div class="metric-change positive">+12% vs mês anterior</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Receita Total</div>
+                    <div class="metric-value" id="metric-revenue">R$ 0</div>
+                    <div class="metric-change positive">+8% vs mês anterior</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Aguardando Aprovação</div>
+                    <div class="metric-value" id="metric-pending">0</div>
+                    <div class="metric-change warning">3 propostas</div>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>Propostas Recentes</h2>
+                    <a href="#" class="link">Ver todas</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="proposals-table">
+                        <thead>
+                            <tr>
+                                <th>Nome do Projeto</th>
+                                <th>Cliente</th>
+                                <th>Data</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-proposals">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                                    Nenhuma proposta criada ainda. <a href="#" onclick="switchView('editor'); return false;" style="color: #2D6BE4;">Criar primeira proposta</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="info-card">
+                    <h3>Precisa de um template?</h3>
+                    <p>Explore nossa biblioteca com modelos prontos para diferentes áreas</p>
+                    <button class="btn btn-outline" onclick="switchView('templates')">Browse Library</button>
+                </div>
+                <div class="info-card">
+                    <h3>Próximos Prazos</h3>
+                    <div id="upcoming-deadlines" style="margin-top: 12px;">
+                        <p style="color: #999; font-size: 14px;">Nenhum prazo próximo</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor View -->
+        <div class="view hidden" id="editor-view">
+            <div class="editor-container">
+                <div class="editor-form">
+                    <div class="view-header">
+                        <h1>Nova Proposta</h1>
+                        <p>Preencha os dados e veja o preview em tempo real</p>
+                    </div>
+
+                    <!-- Client Info Section -->
+                    <div class="form-section">
+                        <h3>Informações do Cliente</h3>
+                        <div class="form-group">
+                            <label>Nome do Cliente</label>
+                            <input type="text" id="clientName" placeholder="Ex: João Silva" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Empresa</label>
+                            <input type="text" id="company" placeholder="Ex: Tech Soluções" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Email de Contato</label>
+                            <input type="email" id="email" placeholder="contato@empresa.com" class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- Service Scope Section -->
+                    <div class="form-section">
+                        <h3>Escopo do Serviço</h3>
+                        <div class="form-group">
+                            <label>Título do Projeto</label>
+                            <input type="text" id="projectTitle" placeholder="Ex: Desenvolvimento de App Mobile" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Categoria</label>
+                            <select id="category" class="form-input">
+                                <option value="">Selecione uma categoria</option>
+                                <option value="dev-frontend">Dev Frontend</option>
+                                <option value="dev-backend">Dev Backend</option>
+                                <option value="design-ui">Design UI/UX</option>
+                                <option value="design-graphic">Design Gráfico</option>
+                                <option value="marketing">Marketing Digital</option>
+                                <option value="copywriting">Copywriting</option>
+                                <option value="consultoria">Consultoria</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Descrição Detalhada</label>
+                            <textarea id="description" placeholder="Descreva os detalhes do projeto..." class="form-input" rows="4"></textarea>
+                        </div>
+                        <button class="btn btn-outline" id="useTemplateBtn">Usar Template</button>
+                    </div>
+
+                    <!-- Investment Section -->
+                    <div class="form-section">
+                        <h3>Investimento</h3>
+                        <div class="items-table">
+                            <div class="items-header">
+                                <div class="col-name">Nome do Item</div>
+                                <div class="col-value">Valor</div>
+                                <div class="col-action"></div>
+                            </div>
+                            <div id="items-list"></div>
+                        </div>
+                        <button class="btn btn-outline" id="addItemBtn">+ Adicionar Item</button>
+                        <div class="total-box">
+                            <span>Total:</span>
+                            <span id="total-value">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <!-- Dates Section -->
+                    <div class="form-section">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Prazo de Entrega</label>
+                                <input type="date" id="deadline" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Validade da Proposta</label>
+                                <input type="date" id="validity" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="form-actions">
+                        <button class="btn btn-outline" id="saveDraftBtn">Salvar Rascunho</button>
+                        <button class="btn btn-primary" id="generateProposalBtn">Gerar Proposta</button>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="editor-preview">
+                    <div class="preview-container" id="preview">
+                        <div class="proposal-card">
+                            <div class="proposal-header">
+                                <div class="proposal-title">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
+                                    </svg>
+                                    <span id="preview-company">Agência Digital Pro</span>
+                                </div>
+                                <div class="proposal-date" id="preview-date"></div>
+                            </div>
+                            <h2 id="preview-project-title">Proposta Comercial</h2>
+                            <div class="proposal-info">
+                                <div class="info-block">
+                                    <div class="info-label">Cliente</div>
+                                    <div class="info-value" id="preview-client">—</div>
+                                </div>
+                                <div class="info-block">
+                                    <div class="info-label">Empresa</div>
+                                    <div class="info-value" id="preview-company-name">—</div>
+                                </div>
+                                <div class="info-block">
+                                    <div class="info-label">Email</div>
+                                    <div class="info-value" id="preview-email">—</div>
+                                </div>
+                                <div class="info-block">
+                                    <div class="info-label">Prazo</div>
+                                    <div class="info-value" id="preview-deadline">—</div>
+                                </div>
+                                <div class="info-block">
+                                    <div class="info-label">Validade</div>
+                                    <div class="info-value" id="preview-validity">—</div>
+                                </div>
+                            </div>
+                            <div class="proposal-section">
+                                <h3>Descrição do Projeto</h3>
+                                <p id="preview-description">Aguardando dados...</p>
+                            </div>
+                            <div class="proposal-section">
+                                <h3>Investimento</h3>
+                                <table class="proposal-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th>Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="preview-items">
+                                        <tr>
+                                            <td colspan="2" style="text-align: center; padding: 20px; color: #999;">Nenhum item adicionado</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="proposal-total">
+                                <span>Total da Proposta:</span>
+                                <span id="preview-total">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline btn-block" id="printBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                            <rect x="6" y="14" width="12" height="8"></rect>
+                        </svg>
+                        Imprimir / PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clients View -->
+        <div class="view hidden" id="clients-view">
+            <div class="view-header">
+                <h1>Clientes</h1>
+                <p>Gerencie seus clientes e histórico de propostas</p>
+            </div>
+            <div id="clients-list" style="padding: 40px; text-align: center; color: #999;">
+                Nenhum cliente cadastrado ainda
+            </div>
+        </div>
+
+        <!-- Templates View -->
+        <div class="view hidden" id="templates-view">
+            <div class="view-header">
+                <h1>Templates</h1>
+                <p>Modelos profissionais para diferentes áreas</p>
+            </div>
+            <div class="templates-grid" id="templates-grid">
+                <!-- Templates will be populated here -->
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div class="view hidden" id="settings-view">
+            <div class="view-header">
+                <h1>Configurações</h1>
+                <p>Personalize sua experiência</p>
+            </div>
+            <div class="form-section">
+                <h3>Informações da Agência</h3>
+                <div class="form-group">
+                    <label>Nome da Agência/Freelancer</label>
+                    <input type="text" id="agencyName" placeholder="Seu nome ou nome da agência" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="settingsEmail" placeholder="seu@email.com" class="form-input">
+                </div>
+                <button class="btn btn-primary" id="saveSettingsBtn">Salvar Configurações</button>
+            </div>
+            <div class="form-section">
+                <h3>Dados</h3>
+                <button class="btn btn-outline" id="exportDataBtn">Exportar Dados (JSON)</button>
+                <button class="btn btn-outline" id="clearDataBtn" style="margin-top: 8px;">Limpar Todos os Dados</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Template Modal -->
+    <div class="modal hidden" id="templateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Escolha um Template de Escopo</h2>
+                <button class="modal-close" id="closeTemplateModal">&times;</button>
+            </div>
+            <div class="templates-modal-grid" id="templatesModalGrid">
+                <!-- Templates will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+
+    <script src="templates.js"></script>
+    <script src="proposals.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
