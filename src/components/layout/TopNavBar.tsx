@@ -4,28 +4,23 @@ import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useState } from "react";
 import Link from "next/link";
-
-const tabs = [
-  { label: "Empresa Alfa", id: "empresa" },
-  { label: "Grupo Beta", id: "grupo" },
-  { label: "Unidade Sul", id: "unidade" },
-];
+import { useUnit, unitTabs } from "@/hooks/useUnit";
 
 export function TopNavBar() {
-  const [activeTab, setActiveTab] = useState("empresa");
+  const { activeUnit, setActiveUnit } = useUnit();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
     <header className="hidden md:flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
       {/* Context tabs */}
       <div className="flex items-center gap-1">
-        {tabs.map((tab) => (
+        {unitTabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => setActiveUnit(tab.id)}
             className={cn(
               "px-4 py-2 text-sm font-medium transition-all cursor-pointer",
-              activeTab === tab.id
+              activeUnit === tab.id
                 ? "text-primary border-b-2 border-primary"
                 : "text-on-surface-variant hover:text-on-surface"
             )}
