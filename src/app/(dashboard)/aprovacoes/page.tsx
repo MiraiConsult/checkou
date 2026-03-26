@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 
-const approvals = [
+const initialApprovals = [
   {
     id: "1",
     checklist: "Abertura de Restaurante",
@@ -65,6 +66,26 @@ const approvals = [
 ];
 
 export default function AprovacoesPage() {
+  const [approvals, setApprovals] = useState(initialApprovals);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
+
+  const handleApprove = (id: string) => {
+    setActionFeedback({ id, action: "approved" });
+    setTimeout(() => {
+      setApprovals((prev) => prev.filter((a) => a.id !== id));
+      setActionFeedback(null);
+    }, 800);
+  };
+
+  const handleReject = (id: string) => {
+    setActionFeedback({ id, action: "rejected" });
+    setTimeout(() => {
+      setApprovals((prev) => prev.filter((a) => a.id !== id));
+      setActionFeedback(null);
+    }, 800);
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -74,7 +95,7 @@ export default function AprovacoesPage() {
             <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Auditoria & Conformidade</p>
             <h2 className="text-3xl font-extrabold text-navy tracking-tight">Painel de Aprovações</h2>
           </div>
-          <Badge variant="warning" dot className="ml-2 text-[10px]">14 PENDENTES</Badge>
+          <Badge variant="warning" dot className="ml-2 text-[10px]">{approvals.length} PENDENTES</Badge>
         </div>
       </div>
 
@@ -112,81 +133,102 @@ export default function AprovacoesPage() {
         </div>
       </div>
 
+      {approvals.length === 0 && (
+        <Card className="text-center py-12">
+          <span className="material-symbols-outlined text-tertiary text-[48px] mb-4">task_alt</span>
+          <h3 className="text-lg font-bold text-navy mb-1">Tudo aprovado!</h3>
+          <p className="text-sm text-on-surface-variant">Não há aprovações pendentes no momento.</p>
+        </Card>
+      )}
+
       {/* Approval cards */}
       <div className="space-y-4">
-        {approvals.map((approval) => (
-          <Card key={approval.id} className="!p-0 overflow-hidden">
-            <div className="p-6">
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
-                {/* Score ring */}
-                <div className="flex-shrink-0 flex items-center justify-center">
-                  <ScoreRing score={approval.score} size={80} strokeWidth={7} />
-                </div>
-
-                {/* Details grid */}
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Checklist + Unit */}
-                  <div>
-                    <p className="text-sm font-bold text-navy">{approval.checklist}</p>
-                    <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
-                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      {approval.unit}
-                    </p>
+        {approvals.map((approval) => {
+          const isFeedback = actionFeedback?.id === approval.id;
+          return (
+            <Card
+              key={approval.id}
+              className={`!p-0 overflow-hidden transition-all duration-500 ${
+                isFeedback ? (actionFeedback.action === "approved" ? "ring-2 ring-tertiary bg-tertiary-fixed/5" : "ring-2 ring-error bg-error-container/5") : ""
+              }`}
+            >
+              <div className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  {/* Score ring */}
+                  <div className="flex-shrink-0 flex items-center justify-center">
+                    <ScoreRing score={approval.score} size={80} strokeWidth={7} />
                   </div>
 
-                  {/* Operator */}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-primary">{approval.initials}</span>
+                  {/* Details grid */}
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Checklist + Unit */}
+                    <div>
+                      <p className="text-sm font-bold text-navy">{approval.checklist}</p>
+                      <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
+                        <span className="material-symbols-outlined text-[14px]">location_on</span>
+                        {approval.unit}
+                      </p>
+                    </div>
+
+                    {/* Operator */}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-primary">{approval.initials}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-on-surface">{approval.operator}</p>
+                          <p className="text-[11px] text-on-surface-variant">{approval.operatorRole}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-on-surface">{approval.operator}</p>
-                        <p className="text-[11px] text-on-surface-variant">{approval.operatorRole}</p>
+                    </div>
+
+                    {/* Date */}
+                    <div>
+                      <p className="text-xs text-outline uppercase tracking-wider mb-0.5">Conclusão</p>
+                      <p className="text-sm font-medium text-on-surface">{approval.completedAt}</p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 justify-end">
+                      <Button variant="outline" size="sm" onClick={() => setExpandedId(expandedId === approval.id ? null : approval.id)}>
+                        <span className="material-symbols-outlined text-[16px]">{expandedId === approval.id ? "expand_less" : "expand_more"}</span>
+                        Ver
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => handleReject(approval.id)}>Rejeitar</Button>
+                      <Button variant="primary" size="sm" onClick={() => handleApprove(approval.id)}>
+                        <span className="material-symbols-outlined text-[16px]">check</span>
+                        Aprovar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded details */}
+                {(expandedId === approval.id || true) && (
+                  <div className="mt-5 pt-5 border-t border-outline-variant/10">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Observação do Operador</p>
+                        <p className="text-sm text-on-surface italic">{approval.observation}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-xs text-on-surface-variant bg-surface-container-low px-3 py-1.5 rounded-full">
+                          <span className="material-symbols-outlined text-[14px]">photo_camera</span>
+                          {approval.photos} fotos
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-error bg-error-container/20 px-3 py-1.5 rounded-full font-bold">
+                          <span className="material-symbols-outlined text-[14px]">warning</span>
+                          {approval.criticalItems} itens críticos
+                        </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* Date */}
-                  <div>
-                    <p className="text-xs text-outline uppercase tracking-wider mb-0.5">Conclusão</p>
-                    <p className="text-sm font-medium text-on-surface">{approval.completedAt}</p>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 justify-end">
-                    <Button variant="outline" size="sm">Ver</Button>
-                    <Button variant="danger" size="sm">Rejeitar</Button>
-                    <Button variant="primary" size="sm">
-                      <span className="material-symbols-outlined text-[16px]">check</span>
-                      Aprovar
-                    </Button>
-                  </div>
-                </div>
+                )}
               </div>
-
-              {/* Expanded details */}
-              <div className="mt-5 pt-5 border-t border-outline-variant/10">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Observação do Operador</p>
-                    <p className="text-sm text-on-surface italic">{approval.observation}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-xs text-on-surface-variant bg-surface-container-low px-3 py-1.5 rounded-full">
-                      <span className="material-symbols-outlined text-[14px]">photo_camera</span>
-                      {approval.photos} fotos
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-error bg-error-container/20 px-3 py-1.5 rounded-full font-bold">
-                      <span className="material-symbols-outlined text-[14px]">warning</span>
-                      {approval.criticalItems} itens críticos
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { KPICard } from "@/components/ui/KPICard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Button } from "@/components/ui/Button";
+import Link from "next/link";
 import {
   BarChart,
   Bar,
@@ -13,7 +15,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 
 const monthlyData = [
@@ -54,6 +55,11 @@ const statusConfig: Record<string, { label: string; variant: "error" | "warning"
 };
 
 export default function RelatoriosPage() {
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const [expandedAlert, setExpandedAlert] = useState<number | null>(null);
+
+  const displayedAlerts = showAllAlerts ? alerts : alerts.slice(0, 3);
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -73,10 +79,12 @@ export default function RelatoriosPage() {
             <option>Unidade Centro</option>
             <option>Unidade Sul</option>
           </select>
-          <Button variant="outline" size="sm">
-            <span className="material-symbols-outlined text-[18px]">filter_alt</span>
-            Filtrar
-          </Button>
+          <Link href="/configuracoes/alertas">
+            <Button variant="outline" size="sm">
+              <span className="material-symbols-outlined text-[18px]">filter_alt</span>
+              Filtrar
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -149,7 +157,12 @@ export default function RelatoriosPage() {
       <Card>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-navy">Alertas Operacionais</h3>
-          <button className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver todos</button>
+          <button
+            onClick={() => setShowAllAlerts(!showAllAlerts)}
+            className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+          >
+            {showAllAlerts ? "Mostrar menos" : "Ver todos"}
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -163,7 +176,7 @@ export default function RelatoriosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {alerts.map((alert) => {
+              {displayedAlerts.map((alert) => {
                 const status = statusConfig[alert.status];
                 return (
                   <tr key={alert.id} className="hover:bg-surface-container-low/50 transition-colors">
@@ -184,7 +197,12 @@ export default function RelatoriosPage() {
                       </div>
                     </td>
                     <td className="py-3 text-center">
-                      <button className="text-xs text-primary font-semibold hover:underline cursor-pointer">{alert.action}</button>
+                      <button
+                        onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
+                        className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                      >
+                        {expandedAlert === alert.id ? "Fechar" : alert.action}
+                      </button>
                     </td>
                   </tr>
                 );

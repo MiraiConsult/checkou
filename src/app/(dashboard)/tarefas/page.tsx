@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
 import { cn } from "@/lib/utils/cn";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type TaskStatus = "pending" | "in_progress" | "completed";
 type TaskPriority = "high" | "medium" | "low";
@@ -44,14 +46,31 @@ const priorityBadge: Record<TaskPriority, { variant: "priority-high" | "priority
 };
 
 const mobileFilters = ["Todas", "Urgentes", "Minha Área", "Favoritas"];
+const statusFilters = ["Todos", "Pendente", "Em Andamento", "Concluída"];
+const unitFilters = ["Todas", "Unidade Centro", "Unidade Sul", "Unidade Norte", "Unidade Leste"];
+const periodFilters = ["Todos", "Hoje", "Esta Semana", "Este Mês"];
 
 export default function TarefasPage() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("Todas");
+  const [statusFilter, setStatusFilter] = useState("Todos");
+  const [unitFilter, setUnitFilter] = useState("Todas");
+  const [periodFilter, setPeriodFilter] = useState("Todos");
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const [page, setPage] = useState(0);
 
   const pendingTasks = tasks.filter((t) => t.status === "pending");
   const inProgressTasks = tasks.filter((t) => t.status === "in_progress");
   const completedTasks = tasks.filter((t) => t.status === "completed");
   const overdueTasks = tasks.filter((t) => t.isUrgent);
+
+  const closeAllDropdowns = () => {
+    setShowStatusDropdown(false);
+    setShowUnitDropdown(false);
+    setShowPeriodDropdown(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -64,17 +83,62 @@ export default function TarefasPage() {
             <h2 className="text-3xl font-extrabold text-navy tracking-tight">Gestão de Tarefas</h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-[18px]">filter_alt</span>
-              Status
+            {/* Status filter */}
+            <div className="relative">
+              <button
+                onClick={() => { closeAllDropdowns(); setShowStatusDropdown(!showStatusDropdown); }}
+                className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant hover:border-primary/30 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">filter_alt</span>
+                {statusFilter === "Todos" ? "Status" : statusFilter}
+              </button>
+              {showStatusDropdown && (
+                <div className="absolute right-0 top-11 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[160px]">
+                  {statusFilters.map((f) => (
+                    <button key={f} onClick={() => { setStatusFilter(f); setShowStatusDropdown(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors cursor-pointer", statusFilter === f ? "text-primary font-semibold bg-primary/5" : "text-on-surface-variant hover:bg-surface-container-low")}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-[18px]">domain</span>
-              Unidade
+            {/* Unit filter */}
+            <div className="relative">
+              <button
+                onClick={() => { closeAllDropdowns(); setShowUnitDropdown(!showUnitDropdown); }}
+                className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant hover:border-primary/30 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">domain</span>
+                {unitFilter === "Todas" ? "Unidade" : unitFilter}
+              </button>
+              {showUnitDropdown && (
+                <div className="absolute right-0 top-11 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[180px]">
+                  {unitFilters.map((f) => (
+                    <button key={f} onClick={() => { setUnitFilter(f); setShowUnitDropdown(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors cursor-pointer", unitFilter === f ? "text-primary font-semibold bg-primary/5" : "text-on-surface-variant hover:bg-surface-container-low")}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-              Período
+            {/* Period filter */}
+            <div className="relative">
+              <button
+                onClick={() => { closeAllDropdowns(); setShowPeriodDropdown(!showPeriodDropdown); }}
+                className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant hover:border-primary/30 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">calendar_today</span>
+                {periodFilter === "Todos" ? "Período" : periodFilter}
+              </button>
+              {showPeriodDropdown && (
+                <div className="absolute right-0 top-11 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[160px]">
+                  {periodFilters.map((f) => (
+                    <button key={f} onClick={() => { setPeriodFilter(f); setShowPeriodDropdown(false); }} className={cn("w-full text-left px-4 py-2 text-sm transition-colors cursor-pointer", periodFilter === f ? "text-primary font-semibold bg-primary/5" : "text-on-surface-variant hover:bg-surface-container-low")}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -138,7 +202,9 @@ export default function TarefasPage() {
                 {tasks.map((task) => (
                   <tr key={task.id} className="hover:bg-surface-container-low/50 transition-colors">
                     <td className="py-3.5 pr-4">
-                      <span className="text-sm font-medium text-on-surface">{task.title}</span>
+                      <Link href={`/tarefas/${task.id}`} className="text-sm font-medium text-on-surface hover:text-primary transition-colors">
+                        {task.title}
+                      </Link>
                       {task.progress > 0 && task.progress < 100 && (
                         <ProgressBar value={task.progress} size="sm" color="primary" className="mt-1.5 max-w-[120px]" />
                       )}
@@ -176,9 +242,9 @@ export default function TarefasPage() {
                       )}
                     </td>
                     <td className="py-3.5 text-center">
-                      <button className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined text-outline text-[18px]">more_horiz</span>
-                      </button>
+                      <Link href={`/tarefas/${task.id}`} className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer inline-flex">
+                        <span className="material-symbols-outlined text-outline text-[18px]">visibility</span>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -188,10 +254,10 @@ export default function TarefasPage() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-outline-variant/10">
-            <span className="text-xs text-on-surface-variant">1-10 de 128 tarefas</span>
+            <span className="text-xs text-on-surface-variant">{page * 10 + 1}-{Math.min((page + 1) * 10, 128)} de 128 tarefas</span>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled>Anterior</Button>
-              <Button variant="outline" size="sm">Próximo</Button>
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Anterior</Button>
+              <Button variant="outline" size="sm" onClick={() => setPage(page + 1)}>Próximo</Button>
             </div>
           </div>
         </Card>
@@ -208,7 +274,7 @@ export default function TarefasPage() {
             </div>
             <span className="text-sm text-white/70">8 tarefas resolvidas hoje</span>
           </div>
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" onClick={() => router.push("/relatorios")}>
             Ver Relatório
             <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
           </Button>
@@ -252,7 +318,7 @@ export default function TarefasPage() {
             </div>
             <div className="space-y-3">
               {pendingTasks.map((task) => (
-                <div key={task.id} className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/10 active:scale-[0.98] transition-all">
+                <Link key={task.id} href={`/tarefas/${task.id}`} className="block bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/10 active:scale-[0.98] transition-all">
                   <Badge variant={priorityBadge[task.priority].variant} className="mb-2">{priorityBadge[task.priority].label}</Badge>
                   <h4 className="text-sm font-semibold text-navy mb-2">{task.title}</h4>
                   <div className="flex items-center justify-between">
@@ -267,7 +333,7 @@ export default function TarefasPage() {
                       {task.dueDate}
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -281,7 +347,7 @@ export default function TarefasPage() {
             </div>
             <div className="space-y-3">
               {inProgressTasks.map((task) => (
-                <div key={task.id} className="bg-surface-container-lowest p-4 rounded-xl border-l-4 border-l-primary border border-outline-variant/10 active:scale-[0.98] transition-all">
+                <Link key={task.id} href={`/tarefas/${task.id}`} className="block bg-surface-container-lowest p-4 rounded-xl border-l-4 border-l-primary border border-outline-variant/10 active:scale-[0.98] transition-all">
                   <Badge variant={priorityBadge[task.priority].variant} className="mb-2">{priorityBadge[task.priority].label}</Badge>
                   <h4 className="text-sm font-semibold text-navy mb-2">{task.title}</h4>
                   <ProgressBar value={task.progress} size="sm" color="primary" className="mb-2" />
@@ -294,7 +360,7 @@ export default function TarefasPage() {
                     </div>
                     <span className="text-xs font-bold text-primary">{task.progress}%</span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -308,7 +374,7 @@ export default function TarefasPage() {
             </div>
             <div className="space-y-3">
               {completedTasks.map((task) => (
-                <div key={task.id} className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/10">
+                <Link key={task.id} href={`/tarefas/${task.id}`} className="block bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/10">
                   <h4 className="text-sm font-semibold text-on-surface-variant line-through mb-2">{task.title}</h4>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -319,14 +385,14 @@ export default function TarefasPage() {
                     </div>
                     <span className="material-symbols-outlined text-tertiary text-[18px] filled">check_circle</span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
         </div>
       </div>
 
-      <FloatingActionButton />
+      <FloatingActionButton onClick={() => router.push("/tarefas/1")} />
     </div>
   );
 }

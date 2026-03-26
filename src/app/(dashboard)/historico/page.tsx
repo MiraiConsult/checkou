@@ -24,6 +24,7 @@ const statusBadge: Record<string, { label: string; variant: "success" | "error" 
 
 export default function HistoricoPage() {
   const [activeFilter, setActiveFilter] = useState("Hoje");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -52,6 +53,7 @@ export default function HistoricoPage() {
       <div className="space-y-4">
         {executions.map((exec) => {
           const status = statusBadge[exec.status];
+          const isExpanded = expandedId === exec.id;
           return (
             <Card key={exec.id}>
               <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -75,12 +77,35 @@ export default function HistoricoPage() {
 
                 <div className="flex items-center gap-4">
                   <ScoreRing score={exec.score} size={64} strokeWidth={6} />
-                  <button className="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer">
-                    Ver detalhes
-                    <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : exec.id)}
+                    className="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {isExpanded ? "Fechar" : "Ver detalhes"}
+                    <span className="material-symbols-outlined text-[14px]">{isExpanded ? "expand_less" : "chevron_right"}</span>
                   </button>
                 </div>
               </div>
+
+              {isExpanded && (
+                <div className="mt-4 pt-4 border-t border-outline-variant/10 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Score</p>
+                      <p className="text-2xl font-black text-navy">{exec.score}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Não Conformidades</p>
+                      <p className="text-2xl font-black text-navy">{exec.nonConformities}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Local</p>
+                      <p className="text-sm text-on-surface">{exec.unit}</p>
+                      <p className="text-xs text-outline">{exec.location}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </Card>
           );
         })}

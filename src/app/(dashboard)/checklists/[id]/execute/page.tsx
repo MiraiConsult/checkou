@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +34,9 @@ const questions: QuestionItem[] = [
 ];
 
 export default function ExecuteChecklistPage() {
-  const [currentIndex, setCurrentIndex] = useState(3); // Start at question 4
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentIndex, setCurrentIndex] = useState(3);
   const [answers, setAnswers] = useState<Record<string, QuestionItem["answer"]>>({
     "1": "conform",
     "2": "conform",
@@ -42,8 +45,14 @@ export default function ExecuteChecklistPage() {
   const [observations, setObservations] = useState<Record<string, string>>({
     "3": "Equipamento da fritadeira apresenta resíduos de gordura acumulada. Necessário limpeza profunda urgente.",
   });
+  const [photos, setPhotos] = useState<Record<string, boolean>>({});
   const [showObservation, setShowObservation] = useState(false);
   const [observationText, setObservationText] = useState("");
+  const [desktopObsId, setDesktopObsId] = useState<string | null>(null);
+  const [desktopObsText, setDesktopObsText] = useState("");
+  const [taskGenerated, setTaskGenerated] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [photoTargetId, setPhotoTargetId] = useState<string | null>(null);
 
   const current = questions[currentIndex];
   const totalAnswered = Object.keys(answers).length;
@@ -56,6 +65,10 @@ export default function ExecuteChecklistPage() {
   };
 
   const handleNext = () => {
+    // Save observation if open
+    if (showObservation && observationText.trim()) {
+      setObservations((prev) => ({ ...prev, [current.id]: observationText }));
+    }
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setShowObservation(false);
@@ -71,6 +84,27 @@ export default function ExecuteChecklistPage() {
     }
   };
 
+  const handleGenerateTask = (itemId: string) => {
+    setTaskGenerated((prev) => ({ ...prev, [itemId]: true }));
+  };
+
+  const handlePhotoClick = (itemId: string) => {
+    setPhotoTargetId(itemId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = () => {
+    if (photoTargetId) {
+      setPhotos((prev) => ({ ...prev, [photoTargetId]: true }));
+      setPhotoTargetId(null);
+    }
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+    setTimeout(() => router.push("/checklists"), 1500);
+  };
+
   // Get sections with their items for desktop view
   const sections = questions.reduce((acc, q) => {
     if (!acc[q.section]) acc[q.section] = [];
@@ -78,13 +112,32 @@ export default function ExecuteChecklistPage() {
     return acc;
   }, {} as Record<string, QuestionItem[]>);
 
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-20 h-20 bg-tertiary-fixed/20 rounded-full flex items-center justify-center">
+          <span className="material-symbols-outlined text-tertiary text-[40px] filled">check_circle</span>
+        </div>
+        <h2 className="text-2xl font-extrabold text-navy">Checklist Enviado!</h2>
+        <p className="text-sm text-on-surface-variant">Score: {Math.round((conformCount / totalAnswered) * 100)}% de conformidade</p>
+        <p className="text-xs text-outline">Redirecionando...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
+      {/* Hidden file input for photos */}
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+
       {/* ====== MOBILE VIEW ====== */}
       <div className="md:hidden space-y-6">
         {/* Top bar */}
         <div className="flex items-center justify-between">
-          <button className="w-10 h-10 rounded-full bg-surface-container-lowest border border-outline-variant/10 flex items-center justify-center cursor-pointer">
+          <button
+            onClick={() => router.push("/checklists")}
+            className="w-10 h-10 rounded-full bg-surface-container-lowest border border-outline-variant/10 flex items-center justify-center cursor-pointer"
+          >
             <span className="material-symbols-outlined text-on-surface-variant text-[20px]">close</span>
           </button>
           <Badge variant="success" className="gap-1.5">
@@ -143,21 +196,41 @@ export default function ExecuteChecklistPage() {
 
         {/* Non-conform action */}
         {answers[current.id] === "non_conform" && (
-          <Button variant="primary" className="w-full">
-            <span className="material-symbols-outlined text-[18px]">bolt</span>
-            Gerar Tarefa de Manutenção
-          </Button>
+          taskGenerated[current.id] ? (
+            <div className="w-full py-3 bg-tertiary-fixed/20 text-tertiary rounded-xl flex items-center justify-center gap-2 font-bold text-sm">
+              <span className="material-symbols-outlined text-[18px] filled">check_circle</span>
+              Tarefa Gerada
+            </div>
+          ) : (
+            <Button variant="primary" className="w-full" onClick={() => handleGenerateTask(current.id)}>
+              <span className="material-symbols-outlined text-[18px]">bolt</span>
+              Gerar Tarefa de Manutenção
+            </Button>
+          )
         )}
 
         {/* Evidence buttons */}
         <div className="grid grid-cols-2 gap-3">
-          <button className="flex items-center justify-center gap-2 p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/10 text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
-            <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-            Foto
+          <button
+            onClick={() => handlePhotoClick(current.id)}
+            className={cn(
+              "flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-colors cursor-pointer",
+              photos[current.id]
+                ? "bg-tertiary-fixed/10 border-tertiary/30 text-tertiary"
+                : "bg-surface-container-lowest border-outline-variant/10 text-on-surface-variant hover:bg-surface-container-low"
+            )}
+          >
+            <span className="material-symbols-outlined text-[20px]">{photos[current.id] ? "check_circle" : "photo_camera"}</span>
+            {photos[current.id] ? "Foto Anexada" : "Foto"}
           </button>
           <button
             onClick={() => setShowObservation(!showObservation)}
-            className="flex items-center justify-center gap-2 p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/10 text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer"
+            className={cn(
+              "flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-colors cursor-pointer",
+              showObservation || observations[current.id]
+                ? "bg-primary/5 border-primary/30 text-primary"
+                : "bg-surface-container-lowest border-outline-variant/10 text-on-surface-variant hover:bg-surface-container-low"
+            )}
           >
             <span className="material-symbols-outlined text-[20px]">chat_bubble</span>
             Observação
@@ -173,11 +246,23 @@ export default function ExecuteChecklistPage() {
               placeholder="Descreva a observação..."
               className="w-full bg-surface-container-low rounded-xl p-4 text-sm text-on-surface placeholder:text-outline border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20 resize-none h-24"
             />
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                if (observationText.trim()) {
+                  setObservations((prev) => ({ ...prev, [current.id]: observationText }));
+                  setShowObservation(false);
+                }
+              }}
+            >
+              Salvar Observação
+            </Button>
           </div>
         )}
 
         {/* Existing observation for non-conform */}
-        {observations[current.id] && (
+        {observations[current.id] && !showObservation && (
           <div className="border-l-4 border-error bg-error-container/10 rounded-r-xl p-4">
             <p className="text-sm italic text-on-surface-variant">{observations[current.id]}</p>
           </div>
@@ -192,10 +277,17 @@ export default function ExecuteChecklistPage() {
           >
             <span className="material-symbols-outlined text-on-surface-variant">arrow_back_ios_new</span>
           </button>
-          <Button onClick={handleNext} disabled={currentIndex === questions.length - 1}>
-            Próxima
-            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-          </Button>
+          {currentIndex === questions.length - 1 ? (
+            <Button variant="primary" onClick={handleSubmit} disabled={totalAnswered < questions.length}>
+              Finalizar
+              <span className="material-symbols-outlined text-[18px]">send</span>
+            </Button>
+          ) : (
+            <Button onClick={handleNext} disabled={currentIndex === questions.length - 1}>
+              Próxima
+              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -236,7 +328,7 @@ export default function ExecuteChecklistPage() {
                 <span className="text-white/60">Itens respondidos</span>
                 <span className="font-bold">{totalAnswered}/{questions.length}</span>
               </div>
-              <Button variant="primary" className="w-full">
+              <Button variant="primary" className="w-full" onClick={handleSubmit}>
                 Finalizar e Enviar
                 <span className="material-symbols-outlined text-[18px]">send</span>
               </Button>
@@ -281,13 +373,63 @@ export default function ExecuteChecklistPage() {
                         {observations[item.id] && (
                           <p className="text-xs italic text-error mt-2 border-l-2 border-error pl-2">{observations[item.id]}</p>
                         )}
+                        {/* Desktop observation input */}
+                        {desktopObsId === item.id && (
+                          <div className="mt-2 flex gap-2">
+                            <input
+                              type="text"
+                              value={desktopObsText}
+                              onChange={(e) => setDesktopObsText(e.target.value)}
+                              placeholder="Adicionar observação..."
+                              className="flex-1 bg-surface-container-low rounded-lg px-3 py-1.5 text-xs text-on-surface border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && desktopObsText.trim()) {
+                                  setObservations((prev) => ({ ...prev, [item.id]: desktopObsText }));
+                                  setDesktopObsId(null);
+                                  setDesktopObsText("");
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                if (desktopObsText.trim()) {
+                                  setObservations((prev) => ({ ...prev, [item.id]: desktopObsText }));
+                                }
+                                setDesktopObsId(null);
+                                setDesktopObsText("");
+                              }}
+                              className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
+                            >
+                              Salvar
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                          <span className="material-symbols-outlined text-outline text-[18px]">photo_camera</span>
+                        <button
+                          onClick={() => handlePhotoClick(item.id)}
+                          className={cn(
+                            "p-2 rounded-lg transition-colors cursor-pointer",
+                            photos[item.id] ? "bg-tertiary-fixed/10 text-tertiary" : "hover:bg-surface-container-low text-outline"
+                          )}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">{photos[item.id] ? "check_circle" : "photo_camera"}</span>
                         </button>
-                        <button className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                          <span className="material-symbols-outlined text-outline text-[18px]">chat_bubble</span>
+                        <button
+                          onClick={() => {
+                            if (desktopObsId === item.id) {
+                              setDesktopObsId(null);
+                            } else {
+                              setDesktopObsId(item.id);
+                              setDesktopObsText(observations[item.id] || "");
+                            }
+                          }}
+                          className={cn(
+                            "p-2 rounded-lg transition-colors cursor-pointer",
+                            observations[item.id] ? "bg-primary/10 text-primary" : "hover:bg-surface-container-low text-outline"
+                          )}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
                         </button>
                         <button
                           onClick={() => { setAnswers((p) => ({ ...p, [item.id]: "conform" })); }}
@@ -312,10 +454,20 @@ export default function ExecuteChecklistPage() {
                           Não Conforme
                         </button>
                         {answers[item.id] === "non_conform" && (
-                          <button className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-container transition-all flex items-center gap-1 cursor-pointer">
-                            <span className="material-symbols-outlined text-[14px]">bolt</span>
-                            GERAR TAREFA
-                          </button>
+                          taskGenerated[item.id] ? (
+                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-tertiary-fixed/20 text-tertiary flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px] filled">check_circle</span>
+                              TAREFA GERADA
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleGenerateTask(item.id)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-container transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">bolt</span>
+                              GERAR TAREFA
+                            </button>
+                          )
                         )}
                       </div>
                     </div>
