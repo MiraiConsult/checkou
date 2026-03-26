@@ -50,6 +50,11 @@ const statusFilters = ["Todos", "Pendente", "Em Andamento", "Concluída"];
 const unitFilters = ["Todas", "Unidade Centro", "Unidade Sul", "Unidade Norte", "Unidade Leste"];
 const periodFilters = ["Todos", "Hoje", "Esta Semana", "Este Mês"];
 
+// Pre-computed from constant data
+const pendingTasks = tasks.filter((t) => t.status === "pending");
+const inProgressTasks = tasks.filter((t) => t.status === "in_progress");
+const completedTasks = tasks.filter((t) => t.status === "completed");
+
 export default function TarefasPage() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("Todas");
@@ -60,11 +65,6 @@ export default function TarefasPage() {
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [page, setPage] = useState(0);
-
-  const pendingTasks = tasks.filter((t) => t.status === "pending");
-  const inProgressTasks = tasks.filter((t) => t.status === "in_progress");
-  const completedTasks = tasks.filter((t) => t.status === "completed");
-  const overdueTasks = tasks.filter((t) => t.isUrgent);
 
   const closeAllDropdowns = () => {
     setShowStatusDropdown(false);
@@ -167,7 +167,7 @@ export default function TarefasPage() {
               <Badge variant="error" className="text-[9px]">CRÍTICO</Badge>
             </div>
             <div className="mt-4">
-              <p className="text-3xl font-black text-navy">{overdueTasks.length > 0 ? 14 : 0}</p>
+              <p className="text-3xl font-black text-navy">14</p>
               <p className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">Atrasadas</p>
             </div>
           </Card>
@@ -257,7 +257,7 @@ export default function TarefasPage() {
             <span className="text-xs text-on-surface-variant">{page * 10 + 1}-{Math.min((page + 1) * 10, 128)} de 128 tarefas</span>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Anterior</Button>
-              <Button variant="outline" size="sm" onClick={() => setPage(page + 1)}>Próximo</Button>
+              <Button variant="outline" size="sm" disabled={(page + 1) * 10 >= 128} onClick={() => setPage(page + 1)}>Próximo</Button>
             </div>
           </div>
         </Card>

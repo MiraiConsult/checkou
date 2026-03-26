@@ -51,31 +51,27 @@ function NovoChecklistContent() {
   const [sections, setSections] = useState<Section[]>([
     { id: generateId(), name: "", items: [{ id: generateId(), question: "", required_evidence: false }] },
   ]);
-  const [loaded, setLoaded] = useState(false);
-
   // Load template data when editing
   useEffect(() => {
-    if (editId && !loaded) {
-      const template = templateData.find((t) => t.id === editId);
-      if (template) {
-        setName(template.name);
-        setDescription(template.description);
-        setIcon(template.icon);
-        setSections(
-          template.sections.map((s) => ({
-            id: s.id,
-            name: s.name,
-            items: s.items.map((i) => ({
-              id: i.id,
-              question: i.question,
-              required_evidence: i.required_evidence,
-            })),
-          }))
-        );
-      }
-      setLoaded(true);
+    if (!editId) return;
+    const template = templateData.find((t) => t.id === editId);
+    if (template) {
+      setName(template.name);
+      setDescription(template.description);
+      setIcon(template.icon);
+      setSections(
+        template.sections.map((s) => ({
+          id: s.id,
+          name: s.name,
+          items: s.items.map((i) => ({
+            id: i.id,
+            question: i.question,
+            required_evidence: i.required_evidence,
+          })),
+        }))
+      );
     }
-  }, [editId, loaded]);
+  }, [editId]);
 
   const isEditing = !!editId;
 

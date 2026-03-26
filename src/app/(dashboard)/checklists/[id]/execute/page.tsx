@@ -33,6 +33,13 @@ const questions: QuestionItem[] = [
   { id: "12", section: "Segurança", question: "Saídas de emergência estão desobstruídas?", instruction: "Verificar todas as saídas e sinalização" },
 ];
 
+// Group questions by section (constant, computed once)
+const sectionGroups = questions.reduce((acc, q) => {
+  if (!acc[q.section]) acc[q.section] = [];
+  acc[q.section].push(q);
+  return acc;
+}, {} as Record<string, QuestionItem[]>);
+
 export default function ExecuteChecklistPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,12 +112,7 @@ export default function ExecuteChecklistPage() {
     setTimeout(() => router.push("/checklists"), 1500);
   };
 
-  // Get sections with their items for desktop view
-  const sections = questions.reduce((acc, q) => {
-    if (!acc[q.section]) acc[q.section] = [];
-    acc[q.section].push(q);
-    return acc;
-  }, {} as Record<string, QuestionItem[]>);
+  const sections = sectionGroups;
 
   if (submitted) {
     return (

@@ -10,12 +10,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 export default function TaskDetailPage() {
   const router = useRouter();
   const [completed, setCompleted] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  const handleComplete = () => {
-    setCompleted(true);
-    setProgress(100);
-  };
+  const progress = completed ? 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -78,7 +73,7 @@ export default function TaskDetailPage() {
               Tarefa Concluída
             </div>
           ) : (
-            <Button variant="primary" className="w-full" onClick={handleComplete}>
+            <Button variant="primary" className="w-full" onClick={() => setCompleted(true)}>
               Marcar como Concluída
               <span className="material-symbols-outlined text-[18px]">check_circle</span>
             </Button>
