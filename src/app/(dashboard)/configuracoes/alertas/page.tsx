@@ -24,6 +24,8 @@ const initialEvents: AlertEvent[] = [
   { id: "4", name: "Aprovação Pendente", icon: "pending_actions", whatsapp: false, email: true, pushWeb: false, pushMobile: false, recipients: ["Auditores"] },
 ];
 
+const availableRecipients = ["Supervisores", "Gerentes", "Operadores", "Segurança", "Auditores", "RH", "Diretoria"];
+
 const auditLog = [
   { user: "Carlos Silva", initials: "CS", action: "ativou WhatsApp para Checklist Reprovado", time: "Hoje, 14:30" },
   { user: "Ana Lima", initials: "AL", action: "adicionou Segurança como destinatário", time: "Hoje, 11:15" },
@@ -32,11 +34,40 @@ const auditLog = [
 
 export default function AlertasConfigPage() {
   const [events, setEvents] = useState(initialEvents);
+  const [saved, setSaved] = useState(false);
+  const [addingRecipient, setAddingRecipient] = useState<string | null>(null);
 
   const toggleChannel = (eventId: string, channel: keyof Pick<AlertEvent, "whatsapp" | "email" | "pushWeb" | "pushMobile">) => {
     setEvents((prev) =>
       prev.map((e) => (e.id === eventId ? { ...e, [channel]: !e[channel] } : e))
     );
+    setSaved(false);
+  };
+
+  const removeRecipient = (eventId: string, recipient: string) => {
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId ? { ...e, recipients: e.recipients.filter((r) => r !== recipient) } : e
+      )
+    );
+    setSaved(false);
+  };
+
+  const addRecipient = (eventId: string, recipient: string) => {
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId && !e.recipients.includes(recipient)
+          ? { ...e, recipients: [...e.recipients, recipient] }
+          : e
+      )
+    );
+    setAddingRecipient(null);
+    setSaved(false);
+  };
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   };
 
   return (
@@ -133,7 +164,9 @@ export default function AlertasConfigPage() {
               </div>
             </Card>
           ))}
-          <Button variant="primary" className="w-full mt-4">Salvar Configurações</Button>
+          <Button variant="primary" className="w-full mt-4" onClick={handleSave}>
+            {saved ? "Salvo!" : "Salvar Configurações"}
+          </Button>
         </div>
 
         <div className="lg:col-span-3 space-y-6">
@@ -147,13 +180,33 @@ export default function AlertasConfigPage() {
                     {event.recipients.map((r) => (
                       <span key={r} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-full bg-primary/10 text-primary">
                         {r}
-                        <span className="material-symbols-outlined text-[12px] cursor-pointer hover:text-error">close</span>
+                        <button onClick={() => removeRecipient(event.id, r)} className="cursor-pointer hover:text-error transition-colors">
+                          <span className="material-symbols-outlined text-[12px]">close</span>
+                        </button>
                       </span>
                     ))}
-                    <button className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-full border border-dashed border-outline-variant text-outline hover:text-primary hover:border-primary transition-colors cursor-pointer">
-                      <span className="material-symbols-outlined text-[12px]">add</span>
-                      Adicionar
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setAddingRecipient(addingRecipient === event.id ? null : event.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-full border border-dashed border-outline-variant text-outline hover:text-primary hover:border-primary transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">add</span>
+                        Adicionar
+                      </button>
+                      {addingRecipient === event.id && (
+                        <div className="absolute left-0 top-8 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[140px]">
+                          {availableRecipients.filter((r) => !event.recipients.includes(r)).map((r) => (
+                            <button
+                              key={r}
+                              onClick={() => addRecipient(event.id, r)}
+                              className="w-full text-left px-3 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer"
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -164,10 +217,15 @@ export default function AlertasConfigPage() {
             <span className="material-symbols-outlined text-primary text-[24px] mb-2">help</span>
             <p className="text-sm font-bold text-navy">Documentação API</p>
             <p className="text-xs text-on-surface-variant mt-1">Integre alertas via API REST ou Webhooks</p>
-            <button className="text-xs text-primary font-semibold mt-3 hover:underline cursor-pointer flex items-center gap-1">
+            <a
+              href="https://docs.checkou.com.br"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary font-semibold mt-3 hover:underline cursor-pointer flex items-center gap-1"
+            >
               Ver documentação
               <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-            </button>
+            </a>
           </Card>
 
           <Card>

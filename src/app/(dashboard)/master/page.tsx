@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { KPICard } from "@/components/ui/KPICard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
-const recentGroups = [
+const initialGroups = [
   { id: 1, name: "Rede Alimenta", initials: "RA", plan: "Enterprise", companies: 12, users: 48, status: "active" },
   { id: 2, name: "Grupo Hospitalar Vida", initials: "GH", plan: "Enterprise Plus", companies: 8, users: 156, status: "active" },
   { id: 3, name: "Fast Food Brasil", initials: "FF", plan: "Professional", companies: 24, users: 89, status: "active" },
@@ -20,6 +21,26 @@ const planColors: Record<string, string> = {
 };
 
 export default function MasterDashboardPage() {
+  const [showAll, setShowAll] = useState(false);
+  const [menuOpen, setMenuOpen] = useState<number | null>(null);
+  const [showNewClient, setShowNewClient] = useState(false);
+
+  const displayedGroups = showAll ? initialGroups : initialGroups.slice(0, 3);
+
+  const handleExport = () => {
+    const csv = [
+      "Grupo,Plano,Empresas,Usuários,Status",
+      ...initialGroups.map((g) => `${g.name},${g.plan},${g.companies},${g.users},${g.status}`),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "checkou-clientes.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -29,16 +50,35 @@ export default function MasterDashboardPage() {
           <p className="text-sm text-on-surface-variant mt-1">Visão consolidada de toda a plataforma</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <span className="material-symbols-outlined text-[18px]">download</span>
             Exportar Dados
           </Button>
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" onClick={() => setShowNewClient(!showNewClient)}>
             <span className="material-symbols-outlined text-[18px]">add</span>
             Novo Cliente
           </Button>
         </div>
       </div>
+
+      {/* New client form */}
+      {showNewClient && (
+        <Card>
+          <h3 className="text-lg font-bold text-navy mb-4">Cadastrar Novo Cliente</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input placeholder="Nome do Grupo" className="bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20" />
+            <select className="bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface-variant border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
+              <option>Professional</option>
+              <option>Enterprise</option>
+              <option>Enterprise Plus</option>
+            </select>
+            <div className="flex gap-2">
+              <Button variant="primary" className="flex-1" onClick={() => setShowNewClient(false)}>Salvar</Button>
+              <Button variant="outline" onClick={() => setShowNewClient(false)}>Cancelar</Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -85,7 +125,9 @@ export default function MasterDashboardPage() {
         <Card className="lg:col-span-8">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-navy">Grupos Recentes</h3>
-            <button className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver todos</button>
+            <button onClick={() => setShowAll(!showAll)} className="text-xs text-primary font-semibold hover:underline cursor-pointer">
+              {showAll ? "Mostrar menos" : "Ver todos"}
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -100,7 +142,7 @@ export default function MasterDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
-                {recentGroups.map((group) => (
+                {displayedGroups.map((group) => (
                   <tr key={group.id} className="hover:bg-surface-container-low/50 transition-colors">
                     <td className="py-3 pr-4">
                       <div className="flex items-center gap-3">
@@ -123,9 +165,30 @@ export default function MasterDashboardPage() {
                       </Badge>
                     </td>
                     <td className="py-3 text-center">
-                      <button className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined text-outline text-[18px]">more_horiz</span>
-                      </button>
+                      <div className="relative inline-block">
+                        <button
+                          onClick={() => setMenuOpen(menuOpen === group.id ? null : group.id)}
+                          className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-outline text-[18px]">more_horiz</span>
+                        </button>
+                        {menuOpen === group.id && (
+                          <div className="absolute right-0 top-8 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[140px]">
+                            <button onClick={() => setMenuOpen(null)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
+                              <span className="material-symbols-outlined text-[16px]">visibility</span>
+                              Visualizar
+                            </button>
+                            <button onClick={() => setMenuOpen(null)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
+                              <span className="material-symbols-outlined text-[16px]">edit</span>
+                              Editar
+                            </button>
+                            <button onClick={() => setMenuOpen(null)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
+                              <span className="material-symbols-outlined text-[16px]">block</span>
+                              Suspender
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -136,7 +199,6 @@ export default function MasterDashboardPage() {
 
         {/* Sidebar */}
         <div className="lg:col-span-4 space-y-6">
-          {/* New subscriptions */}
           <div className="bg-primary rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-semibold text-white/80">Novas Assinaturas</p>
@@ -151,7 +213,6 @@ export default function MasterDashboardPage() {
             </div>
           </div>
 
-          {/* Support card */}
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-navy">Suporte Ativo</h4>

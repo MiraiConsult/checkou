@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { KPICard } from "@/components/ui/KPICard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -7,6 +8,8 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { Button } from "@/components/ui/Button";
 import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const areas = [
   { name: "Cozinha", value: 92, color: "tertiary" as const },
@@ -32,6 +35,9 @@ const statusMap: Record<string, { label: string; variant: "success" | "pending" 
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [showFilters, setShowFilters] = useState(false);
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -46,12 +52,43 @@ export default function DashboardPage() {
             <span className="material-symbols-outlined text-[18px]">calendar_today</span>
             23 Mar 2026
           </div>
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <span className="material-symbols-outlined text-[18px]">filter_alt</span>
             Filtros Avançados
           </Button>
         </div>
       </div>
+
+      {/* Filters panel */}
+      {showFilters && (
+        <Card>
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+              <select className="bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
+                <option>Todas as Unidades</option>
+                <option>Unidade Centro</option>
+                <option>Unidade Sul</option>
+                <option>Unidade Norte</option>
+              </select>
+              <select className="bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
+                <option>Últimos 7 dias</option>
+                <option>Últimos 30 dias</option>
+                <option>Este mês</option>
+              </select>
+              <select className="bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
+                <option>Todos os Status</option>
+                <option>Aprovado</option>
+                <option>Pendente</option>
+                <option>Reprovado</option>
+              </select>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(false)}>
+              <span className="material-symbols-outlined text-[16px]">close</span>
+              Fechar
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -122,7 +159,7 @@ export default function DashboardPage() {
         <Card className="md:col-span-5">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-navy">Conformidade por Área</h3>
-            <button className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver todas</button>
+            <Link href="/relatorios" className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver todas</Link>
           </div>
           <div className="space-y-4">
             {areas.map((area) => (
@@ -154,7 +191,7 @@ export default function DashboardPage() {
         <Card className="md:col-span-7">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-navy">Últimas Execuções</h3>
-            <button className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver histórico</button>
+            <Link href="/historico" className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver histórico</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -201,7 +238,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <FloatingActionButton />
+      <FloatingActionButton onClick={() => router.push("/checklists/novo")} />
     </div>
   );
 }
