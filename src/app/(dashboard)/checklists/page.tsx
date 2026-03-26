@@ -30,10 +30,12 @@ export default function ChecklistsPage() {
           <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Gestão de Checklists</p>
           <h2 className="text-3xl font-extrabold text-navy tracking-tight">Templates de Verificação</h2>
         </div>
-        <Button variant="primary">
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Novo Checklist
-        </Button>
+        <Link href="/checklists/novo">
+          <Button variant="primary">
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            Novo Checklist
+          </Button>
+        </Link>
       </div>
 
       {/* Grid of templates */}
@@ -87,13 +89,13 @@ export default function ChecklistsPage() {
         ))}
 
         {/* Create new template card */}
-        <div className="border-2 border-dashed border-outline-variant/30 rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group min-h-[240px]">
+        <Link href="/checklists/novo" className="border-2 border-dashed border-outline-variant/30 rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group min-h-[240px]">
           <div className="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
             <span className="material-symbols-outlined text-outline text-[28px] group-hover:text-primary transition-colors">add</span>
           </div>
           <p className="text-sm font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Criar Novo Template</p>
           <p className="text-xs text-outline mt-1">Adicione um novo checklist</p>
-        </div>
+        </Link>
       </div>
 
       {/* Activity metrics */}
