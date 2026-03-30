@@ -8,13 +8,18 @@ import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const initialTemplates = [
-  { id: "1", icon: "restaurant", name: "Abertura de Restaurante", version: "2.1", description: "Verificações de abertura para operação diária", sections: 5, items: 28, color: "bg-orange-50 text-orange-600" },
-  { id: "2", icon: "cleaning_services", name: "Higienização Cozinha", version: "1.3", description: "Protocolo de limpeza e sanitização da cozinha", sections: 4, items: 22, color: "bg-blue-50 text-blue-600" },
-  { id: "3", icon: "security", name: "Segurança Noturna", version: "1.0", description: "Checklist de segurança para fechamento noturno", sections: 3, items: 15, color: "bg-purple-50 text-purple-600" },
-  { id: "4", icon: "thermostat", name: "Controle de Temperatura", version: "3.0", description: "Monitoramento de temperatura de equipamentos e alimentos", sections: 6, items: 32, color: "bg-red-50 text-red-600" },
-  { id: "5", icon: "inventory_2", name: "Inventário Semanal", version: "1.2", description: "Contagem e verificação de estoque semanal", sections: 4, items: 20, color: "bg-green-50 text-green-600" },
-];
+import { templateData } from "@/lib/data/templates";
+
+const initialTemplates = templateData.map((t) => ({
+  id: t.id,
+  icon: t.icon,
+  name: t.name,
+  version: t.version,
+  description: t.description,
+  sections: t.sections.length,
+  items: t.sections.reduce((sum, s) => sum + s.items.length, 0),
+  color: t.color,
+}));
 
 const activityMetrics = [
   { label: "Taxa Adesão", value: "94.2%", icon: "trending_up", color: "text-tertiary" },
@@ -90,7 +95,7 @@ export default function ChecklistsPage() {
                   {menuOpen === tmpl.id && (
                     <div className="absolute right-0 top-8 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[160px]">
                       <button
-                        onClick={() => { setMenuOpen(null); router.push("/checklists/novo"); }}
+                        onClick={() => { setMenuOpen(null); router.push(`/checklists/novo?id=${tmpl.id}`); }}
                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -133,7 +138,7 @@ export default function ChecklistsPage() {
 
             <div className="flex items-center gap-2 mt-5 pt-4 border-t border-outline-variant/10">
               <button
-                onClick={() => router.push("/checklists/novo")}
+                onClick={() => router.push(`/checklists/novo?id=${tmpl.id}`)}
                 className="flex-1 text-xs font-semibold text-on-surface-variant hover:text-primary py-2 rounded-lg hover:bg-primary/5 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px] align-middle mr-1">edit</span>

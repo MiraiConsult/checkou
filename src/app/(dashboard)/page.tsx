@@ -10,22 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-const areas = [
-  { name: "Cozinha", value: 92, color: "tertiary" as const },
-  { name: "Salão", value: 85, color: "primary" as const },
-  { name: "Banheiros", value: 70, color: "warning" as const },
-  { name: "Estoque", value: 88, color: "primary" as const },
-  { name: "Recepção", value: 95, color: "tertiary" as const },
-];
-
-const recentExecutions = [
-  { id: 1, checklist: "Abertura de Loja", operator: "Ana Lima", initials: "AL", score: 95, status: "approved", date: "23 Mar, 09:30" },
-  { id: 2, checklist: "Higienização Cozinha", operator: "João Santos", initials: "JS", score: 82, status: "completed", date: "23 Mar, 08:15" },
-  { id: 3, checklist: "Segurança Noturna", operator: "Maria Costa", initials: "MC", score: 68, status: "rejected", date: "22 Mar, 22:00" },
-  { id: 4, checklist: "Controle Temperatura", operator: "Pedro Alves", initials: "PA", score: 91, status: "approved", date: "22 Mar, 14:20" },
-  { id: 5, checklist: "Limpeza Banheiros", operator: "Carla Nunes", initials: "CN", score: 77, status: "completed", date: "22 Mar, 11:45" },
-];
+import { useUnit } from "@/hooks/useUnit";
 
 const statusMap: Record<string, { label: string; variant: "success" | "pending" | "error" | "info" }> = {
   approved: { label: "Aprovado", variant: "success" },
@@ -37,6 +22,11 @@ const statusMap: Record<string, { label: string; variant: "success" | "pending" 
 export default function DashboardPage() {
   const router = useRouter();
   const [showFilters, setShowFilters] = useState(false);
+  const unit = useUnit((s) => s.getUnitData());
+
+  const checklistPercent = Math.round((unit.checklistsHoje.done / unit.checklistsHoje.total) * 100);
+  const trendPositive = unit.conformidadeTrend.startsWith("+");
+  const lowestArea = [...unit.areas].sort((a, b) => a.value - b.value)[0];
 
   return (
     <div className="space-y-8">
@@ -101,18 +91,18 @@ export default function DashboardPage() {
                 cx="90" cy="90" r="78" fill="none" stroke="#007EF9" strokeWidth="12"
                 strokeLinecap="round"
                 strokeDasharray={2 * Math.PI * 78}
-                strokeDashoffset={2 * Math.PI * 78 * (1 - 0.88)}
+                strokeDashoffset={2 * Math.PI * 78 * (1 - unit.conformidade / 100)}
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-4xl font-black text-navy">88%</span>
+              <span className="text-4xl font-black text-navy">{unit.conformidade}%</span>
               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Conformidade</span>
             </div>
           </div>
           <p className="text-xs text-on-surface-variant mt-4 text-center">Taxa geral de conformidade das unidades</p>
-          <div className="flex items-center gap-1 mt-2 text-tertiary text-xs font-bold">
-            <span className="material-symbols-outlined text-[16px]">trending_up</span>
-            +2.4% vs. mês anterior
+          <div className={`flex items-center gap-1 mt-2 text-xs font-bold ${trendPositive ? "text-tertiary" : "text-error"}`}>
+            <span className="material-symbols-outlined text-[16px]">{trendPositive ? "trending_up" : "trending_down"}</span>
+            {unit.conformidadeTrend} vs. mês anterior
           </div>
         </Card>
 
@@ -123,30 +113,30 @@ export default function DashboardPage() {
               <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center">
                 <span className="material-symbols-outlined text-primary">fact_check</span>
               </div>
-              <span className="text-[10px] font-bold text-tertiary bg-tertiary-fixed/20 px-2 py-0.5 rounded-full">80%</span>
+              <span className="text-[10px] font-bold text-tertiary bg-tertiary-fixed/20 px-2 py-0.5 rounded-full">{checklistPercent}%</span>
             </div>
             <div className="mt-4">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-navy">24</span>
-                <span className="text-lg text-on-surface-variant font-medium">/30</span>
+                <span className="text-3xl font-black text-navy">{unit.checklistsHoje.done}</span>
+                <span className="text-lg text-on-surface-variant font-medium">/{unit.checklistsHoje.total}</span>
               </div>
               <p className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">Checklists Hoje</p>
-              <ProgressBar value={24} max={30} color="primary" size="sm" className="mt-3" />
+              <ProgressBar value={unit.checklistsHoje.done} max={unit.checklistsHoje.total} color="primary" size="sm" className="mt-3" />
             </div>
           </Card>
 
           <KPICard
             icon="assignment"
             label="Tarefas Abertas"
-            value={12}
-            trend={{ value: "+3%", positive: false }}
-            description="4 atrasadas, 8 no prazo"
+            value={unit.tarefasAbertas}
+            trend={{ value: `${unit.tarefasAtrasadas} atrasadas`, positive: false }}
+            description={`${unit.tarefasAtrasadas} atrasadas, ${unit.tarefasNoPrazo} no prazo`}
           />
 
           <KPICard
             icon="pending_actions"
             label="Aprovações Pendentes"
-            value="05"
+            value={String(unit.aprovacoesPendentes).padStart(2, "0")}
             trend={{ value: "-2", positive: true }}
             description="Aguardando auditoria"
           />
@@ -162,7 +152,7 @@ export default function DashboardPage() {
             <Link href="/relatorios" className="text-xs text-primary font-semibold hover:underline cursor-pointer">Ver todas</Link>
           </div>
           <div className="space-y-4">
-            {areas.map((area) => (
+            {unit.areas.map((area) => (
               <div key={area.name}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-medium text-on-surface">{area.name}</span>
@@ -180,7 +170,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-semibold text-navy">Insight</p>
                 <p className="text-xs text-on-surface-variant mt-1">
-                  Banheiros apresentam queda de 8% na conformidade. Recomenda-se revisão do checklist.
+                  {lowestArea.name} apresenta a menor conformidade ({lowestArea.value}%). Recomenda-se revisão do checklist.
                 </p>
               </div>
             </div>
@@ -205,7 +195,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
-                {recentExecutions.map((exec) => {
+                {unit.execucoes.map((exec) => {
                   const status = statusMap[exec.status];
                   return (
                     <tr key={exec.id} className="hover:bg-surface-container-low/50 transition-colors">

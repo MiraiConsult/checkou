@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
 import { cn } from "@/lib/utils/cn";
+import { templateData } from "@/lib/data/templates";
 
 const iconOptions = [
   "restaurant", "cleaning_services", "security", "thermostat", "inventory_2",
@@ -31,7 +32,17 @@ function generateId() {
 }
 
 export default function NovoChecklistPage() {
+  return (
+    <Suspense>
+      <NovoChecklistContent />
+    </Suspense>
+  );
+}
+
+function NovoChecklistContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -40,6 +51,29 @@ export default function NovoChecklistPage() {
   const [sections, setSections] = useState<Section[]>([
     { id: generateId(), name: "", items: [{ id: generateId(), question: "", required_evidence: false }] },
   ]);
+  // Load template data when editing
+  useEffect(() => {
+    if (!editId) return;
+    const template = templateData.find((t) => t.id === editId);
+    if (template) {
+      setName(template.name);
+      setDescription(template.description);
+      setIcon(template.icon);
+      setSections(
+        template.sections.map((s) => ({
+          id: s.id,
+          name: s.name,
+          items: s.items.map((i) => ({
+            id: i.id,
+            question: i.question,
+            required_evidence: i.required_evidence,
+          })),
+        }))
+      );
+    }
+  }, [editId]);
+
+  const isEditing = !!editId;
 
   const addSection = () => {
     setSections([...sections, {
@@ -104,7 +138,9 @@ export default function NovoChecklistPage() {
           </button>
           <div>
             <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Gestão de Checklists</p>
-            <h2 className="text-3xl font-extrabold text-navy tracking-tight">Novo Checklist</h2>
+            <h2 className="text-3xl font-extrabold text-navy tracking-tight">
+              {isEditing ? "Editar Checklist" : "Novo Checklist"}
+            </h2>
           </div>
         </div>
         <div className="flex items-center gap-3">

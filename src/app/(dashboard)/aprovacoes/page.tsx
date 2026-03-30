@@ -70,16 +70,8 @@ export default function AprovacoesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
 
-  const handleApprove = (id: string) => {
-    setActionFeedback({ id, action: "approved" });
-    setTimeout(() => {
-      setApprovals((prev) => prev.filter((a) => a.id !== id));
-      setActionFeedback(null);
-    }, 800);
-  };
-
-  const handleReject = (id: string) => {
-    setActionFeedback({ id, action: "rejected" });
+  const handleAction = (id: string, action: "approved" | "rejected") => {
+    setActionFeedback({ id, action });
     setTimeout(() => {
       setApprovals((prev) => prev.filter((a) => a.id !== id));
       setActionFeedback(null);
@@ -195,8 +187,8 @@ export default function AprovacoesPage() {
                         <span className="material-symbols-outlined text-[16px]">{expandedId === approval.id ? "expand_less" : "expand_more"}</span>
                         Ver
                       </Button>
-                      <Button variant="danger" size="sm" onClick={() => handleReject(approval.id)}>Rejeitar</Button>
-                      <Button variant="primary" size="sm" onClick={() => handleApprove(approval.id)}>
+                      <Button variant="danger" size="sm" onClick={() => handleAction(approval.id, "rejected")}>Rejeitar</Button>
+                      <Button variant="primary" size="sm" onClick={() => handleAction(approval.id, "approved")}>
                         <span className="material-symbols-outlined text-[16px]">check</span>
                         Aprovar
                       </Button>
@@ -205,7 +197,7 @@ export default function AprovacoesPage() {
                 </div>
 
                 {/* Expanded details */}
-                {(expandedId === approval.id || true) && (
+                {expandedId === approval.id && (
                   <div className="mt-5 pt-5 border-t border-outline-variant/10">
                     <div className="flex flex-col md:flex-row gap-4">
                       <div className="flex-1">
