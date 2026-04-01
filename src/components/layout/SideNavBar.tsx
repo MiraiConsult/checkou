@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
@@ -18,6 +19,12 @@ const navItems = [
 export function SideNavBar() {
   const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, fetchUser, logout } = useAuth();
+
+  useEffect(() => { fetchUser(); }, [fetchUser]);
+
+  const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const roleLabel = user?.role === "master" ? "Master" : user?.role === "admin" ? "Admin de Grupo" : "Operador";
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-navy fixed top-0 left-0 h-full z-40">
@@ -67,10 +74,10 @@ export function SideNavBar() {
               <span className="material-symbols-outlined text-[16px]">settings</span>
               Configurações
             </Link>
-            <Link href="/login" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors cursor-pointer">
+            <button onClick={() => { setShowUserMenu(false); logout(); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[16px]">logout</span>
               Sair
-            </Link>
+            </button>
           </div>
         )}
         <button
@@ -78,11 +85,11 @@ export function SideNavBar() {
           className="w-full flex items-center gap-3 px-4 py-3 bg-slate-900/50 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer"
         >
           <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
-            <span className="text-sm font-bold text-primary">CS</span>
+            <span className="text-sm font-bold text-primary">{initials}</span>
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-semibold text-white truncate">Carlos Silva</p>
-            <p className="text-[11px] text-slate-400 truncate">Admin de Grupo</p>
+            <p className="text-sm font-semibold text-white truncate">{user?.name || "Carregando..."}</p>
+            <p className="text-[11px] text-slate-400 truncate">{roleLabel}</p>
           </div>
           <span className="material-symbols-outlined text-slate-500 text-[18px]">
             {showUserMenu ? "expand_less" : "more_horiz"}
