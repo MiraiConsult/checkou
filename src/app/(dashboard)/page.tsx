@@ -209,7 +209,7 @@ export default function DashboardPage() {
         {/* Quick actions */}
         <Card className="md:col-span-5">
           <h3 className="text-lg font-bold text-navy mb-6">Começar</h3>
-          {data!.templates === 0 && data!.executions.length === 0 ? (
+          {!hasExecutions ? (
             <div className="space-y-4">
               <Link href="/checklists/novo" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
