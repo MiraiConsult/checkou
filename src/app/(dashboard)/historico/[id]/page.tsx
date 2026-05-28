@@ -13,6 +13,7 @@ interface Response {
   item_id: string;
   answer: "conform" | "non_conform";
   observation: string | null;
+  evidence_url: string | null;
 }
 
 interface Section {
@@ -222,6 +223,11 @@ export default function ExecutionDetailPage() {
                         </p>
                         {resp.observation && (
                           <p className="text-xs italic text-on-surface-variant mt-2 border-l-2 border-error pl-2">{resp.observation}</p>
+                        )}
+                        {resp.evidence_url && (
+                          <a href={resp.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
+                            <img src={resp.evidence_url} alt="Evidência fotográfica" className="w-32 h-24 rounded-xl object-cover border-2 border-outline-variant/20 hover:border-primary/40 transition-colors" />
+                          </a>
                         )}
                       </div>
                     </div>

@@ -34,7 +34,7 @@ export default function ExecuteChecklistPage() {
 
   const [answers, setAnswers] = useState<Record<string, "conform" | "non_conform">>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
-  const [photos, setPhotos] = useState<Record<string, boolean>>({});
+  const [photos, setPhotos] = useState<Record<string, string>>({});
   const [desktopObsId, setDesktopObsId] = useState<string | null>(null);
   const [desktopObsText, setDesktopObsText] = useState("");
   const [taskGenerated, setTaskGenerated] = useState<Record<string, boolean>>({});
@@ -76,11 +76,18 @@ export default function ExecuteChecklistPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = () => {
-    if (photoTargetId) {
-      setPhotos((prev) => ({ ...prev, [photoTargetId]: true }));
-      setPhotoTargetId(null);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !photoTargetId) return;
+    const supabase = createClient();
+    const path = `${templateId}/${photoTargetId}_${Date.now()}.${file.name.split(".").pop()}`;
+    const { error } = await supabase.storage.from("evidence").upload(path, file);
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("evidence").getPublicUrl(path);
+      setPhotos((prev) => ({ ...prev, [photoTargetId]: urlData.publicUrl }));
     }
+    setPhotoTargetId(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const missingPhotos = questions.filter((q) => q.required_evidence && answers[q.id] && !photos[q.id]);
@@ -97,6 +104,7 @@ export default function ExecuteChecklistPage() {
       item_id: itemId,
       answer,
       observation: observations[itemId] || null,
+      evidence_url: photos[itemId] || null,
     }));
 
     // Get first unit for this org (or null)
@@ -244,6 +252,9 @@ export default function ExecuteChecklistPage() {
                         <button onClick={() => handlePhotoClick(item.id)} className={cn("p-2 rounded-lg transition-colors cursor-pointer", photos[item.id] ? "bg-tertiary-fixed/10 text-tertiary" : "hover:bg-surface-container-low text-outline")}>
                           <span className="material-symbols-outlined text-[18px]">{photos[item.id] ? "check_circle" : "photo_camera"}</span>
                         </button>
+                        {photos[item.id] && (
+                          <img src={photos[item.id]} alt="Evidência" className="w-9 h-9 rounded-lg object-cover border border-outline-variant/20" />
+                        )}
                         <button onClick={() => { setDesktopObsId(desktopObsId === item.id ? null : item.id); setDesktopObsText(observations[item.id] || ""); }} className={cn("p-2 rounded-lg transition-colors cursor-pointer", observations[item.id] ? "bg-primary/10 text-primary" : "hover:bg-surface-container-low text-outline")}>
                           <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
                         </button>
