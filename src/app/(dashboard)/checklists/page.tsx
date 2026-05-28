@@ -8,6 +8,8 @@ import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { modelTemplates } from "@/lib/data/templates";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Template {
   id: string;
@@ -25,6 +27,28 @@ export default function ChecklistsPage() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showModels, setShowModels] = useState(false);
+  const [copying, setCopying] = useState<number | null>(null);
+  const { user } = useAuth();
+
+  const copyModel = async (index: number) => {
+    if (!user?.organization_id) return;
+    setCopying(index);
+    const model = modelTemplates[index];
+    const supabase = createClient();
+    const { data } = await supabase.from("checklist_templates").insert({
+      organization_id: user.organization_id,
+      name: model.name,
+      description: model.description,
+      icon: model.icon,
+      version: "1.0",
+      sections: model.sections,
+      status: "published",
+    }).select("id, icon, name, version, description, sections, status").single();
+    if (data) setTemplates([data, ...templates]);
+    setCopying(null);
+    setShowModels(false);
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -143,6 +167,44 @@ export default function ChecklistsPage() {
           <p className="text-sm font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Criar Novo Template</p>
           <p className="text-xs text-outline mt-1">Adicione um novo checklist</p>
         </Link>
+      </div>
+
+      {/* Models library */}
+      <div>
+        <button onClick={() => setShowModels(!showModels)} className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer">
+          <span className="material-symbols-outlined text-[18px]">{showModels ? "expand_less" : "auto_awesome"}</span>
+          {showModels ? "Fechar modelos" : "Explorar modelos prontos"}
+        </button>
+
+        {showModels && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modelTemplates.map((model, i) => {
+              const totalItems = model.sections.reduce((sum, s) => sum + s.items.length, 0);
+              return (
+                <Card key={i} className="border-2 border-dashed border-primary/10">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColors[model.icon] || "bg-primary/5 text-primary"}`}>
+                      <span className="material-symbols-outlined text-[20px]">{model.icon}</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-navy">{model.name}</h4>
+                      <p className="text-xs text-on-surface-variant">{model.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-outline mb-4">
+                    <span>{model.sections.length} seções</span>
+                    <span>{totalItems} itens</span>
+                    <Badge variant="info">{model.category}</Badge>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => copyModel(i)} disabled={copying === i}>
+                    <span className="material-symbols-outlined text-[16px]">{copying === i ? "progress_activity" : "content_copy"}</span>
+                    {copying === i ? "Copiando..." : "Usar este modelo"}
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <FloatingActionButton onClick={() => router.push("/checklists/novo")} />
