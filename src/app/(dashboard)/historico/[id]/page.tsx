@@ -27,9 +27,11 @@ interface ExecutionData {
   started_at: string;
   completed_at: string | null;
   responses: Response[];
-  checklist_templates: { name: string; icon: string; sections: Section[] } | null;
-  profiles: { full_name: string; email: string } | null;
-  units: { name: string } | null;
+  template_name: string;
+  template_icon: string;
+  sections: Section[];
+  operator_name: string;
+  operator_email: string;
 }
 
 const statusLabel: Record<string, { label: string; variant: "success" | "error" | "info" | "pending" }> = {
@@ -48,24 +50,46 @@ export default function ExecutionDetailPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_executions")
-      .select("id, score, status, started_at, completed_at, responses, checklist_templates(name, icon, sections), profiles(full_name, email), units(name)")
-      .eq("id", execId).single()
-      .then(({ data }) => { setExec(data as unknown as ExecutionData); setLoading(false); });
+    const fetchData = async () => {
+      const { data: raw } = await supabase
+        .from("checklist_executions")
+        .select("id, score, status, started_at, completed_at, responses, template_id, operator_id")
+        .eq("id", execId)
+        .single();
+
+      if (!raw) { setLoading(false); return; }
+
+      const [tRes, pRes] = await Promise.all([
+        supabase.from("checklist_templates").select("name, icon, sections").eq("id", raw.template_id).single(),
+        supabase.from("profiles").select("full_name, email").eq("id", raw.operator_id).single(),
+      ]);
+
+      setExec({
+        id: raw.id,
+        score: Number(raw.score),
+        status: raw.status,
+        started_at: raw.started_at,
+        completed_at: raw.completed_at,
+        responses: Array.isArray(raw.responses) ? raw.responses as Response[] : [],
+        template_name: tRes.data?.name || "—",
+        template_icon: tRes.data?.icon || "fact_check",
+        sections: Array.isArray(tRes.data?.sections) ? tRes.data.sections as Section[] : [],
+        operator_name: pRes.data?.full_name || "—",
+        operator_email: pRes.data?.email || "",
+      });
+      setLoading(false);
+    };
+    fetchData();
   }, [execId]);
 
-  const handleApprove = async () => {
+  const handleAction = async (action: "approved" | "rejected") => {
     if (!exec) return;
     const supabase = createClient();
-    await supabase.from("checklist_executions").update({ status: "approved", approved_at: new Date().toISOString() }).eq("id", execId);
-    setExec({ ...exec, status: "approved" });
-  };
-
-  const handleReject = async () => {
-    if (!exec) return;
-    const supabase = createClient();
-    await supabase.from("checklist_executions").update({ status: "rejected" }).eq("id", execId);
-    setExec({ ...exec, status: "rejected" });
+    await supabase.from("checklist_executions").update({
+      status: action,
+      ...(action === "approved" ? { approved_at: new Date().toISOString() } : {}),
+    }).eq("id", execId);
+    setExec({ ...exec, status: action });
   };
 
   if (loading) {
@@ -86,14 +110,11 @@ export default function ExecutionDetailPage() {
     );
   }
 
-  const responses = Array.isArray(exec.responses) ? exec.responses : [];
-  const answersMap = new Map(responses.map((r) => [r.item_id, r]));
-  const sections: Section[] = Array.isArray(exec.checklist_templates?.sections) ? exec.checklist_templates!.sections : [];
-  const operatorName = exec.profiles?.full_name || "—";
-  const initials = operatorName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+  const answersMap = new Map(exec.responses.map((r) => [r.item_id, r]));
+  const initials = exec.operator_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   const status = statusLabel[exec.status] || statusLabel.completed;
-  const conformCount = responses.filter((r) => r.answer === "conform").length;
-  const nonConformCount = responses.filter((r) => r.answer === "non_conform").length;
+  const conformCount = exec.responses.filter((r) => r.answer === "conform").length;
+  const nonConformCount = exec.responses.filter((r) => r.answer === "non_conform").length;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -104,7 +125,7 @@ export default function ExecutionDetailPage() {
         </button>
         <div className="flex-1">
           <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Resultado da Execução</p>
-          <h2 className="text-2xl font-extrabold text-navy tracking-tight">{exec.checklist_templates?.name || "—"}</h2>
+          <h2 className="text-2xl font-extrabold text-navy tracking-tight">{exec.template_name}</h2>
         </div>
         <Badge variant={status.variant} className="text-sm px-3 py-1">{status.label}</Badge>
       </div>
@@ -125,23 +146,17 @@ export default function ExecutionDetailPage() {
                   <span className="text-[10px] font-bold text-primary">{initials}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-navy">{operatorName}</p>
-                  <p className="text-xs text-on-surface-variant">{exec.profiles?.email}</p>
+                  <p className="text-sm font-semibold text-navy">{exec.operator_name}</p>
+                  <p className="text-xs text-on-surface-variant">{exec.operator_email}</p>
                 </div>
               </div>
             </div>
-            {exec.units && (
-              <div>
-                <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Unidade</p>
-                <p className="text-sm text-navy mt-1">{exec.units.name}</p>
-              </div>
-            )}
             <div>
               <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Data</p>
               <p className="text-sm text-navy mt-1">
                 {exec.completed_at
                   ? new Date(exec.completed_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                  : "Em andamento"}
+                  : new Date(exec.started_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
           </div>
@@ -159,14 +174,14 @@ export default function ExecutionDetailPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-on-surface-variant">Total de Itens</span>
-              <span className="text-lg font-black text-navy">{responses.length}</span>
+              <span className="text-lg font-black text-navy">{exec.responses.length}</span>
             </div>
           </div>
 
           {exec.status === "completed" && (
             <div className="flex gap-2 mt-5 pt-4 border-t border-outline-variant/10">
-              <Button variant="danger" size="sm" className="flex-1" onClick={handleReject}>Rejeitar</Button>
-              <Button variant="primary" size="sm" className="flex-1" onClick={handleApprove}>
+              <Button variant="danger" size="sm" className="flex-1" onClick={() => handleAction("rejected")}>Rejeitar</Button>
+              <Button variant="primary" size="sm" className="flex-1" onClick={() => handleAction("approved")}>
                 <span className="material-symbols-outlined text-[16px]">check</span>Aprovar
               </Button>
             </div>
@@ -176,9 +191,9 @@ export default function ExecutionDetailPage() {
 
       {/* Detailed responses by section */}
       <div className="space-y-6">
-        {sections.map((sec, sIdx) => {
-          const sectionConform = sec.items.filter((i) => answersMap.get(i.id)?.answer === "conform").length;
-          const sectionTotal = sec.items.filter((i) => answersMap.has(i.id)).length;
+        {exec.sections.map((sec, sIdx) => {
+          const sectionItems = sec.items.filter((i) => answersMap.has(i.id));
+          const sectionConform = sectionItems.filter((i) => answersMap.get(i.id)?.answer === "conform").length;
           return (
             <Card key={sIdx}>
               <div className="flex items-center justify-between mb-4">
@@ -187,7 +202,7 @@ export default function ExecutionDetailPage() {
                     <span className="text-xs font-bold text-primary">{sIdx + 1}</span>
                   </div>
                   <h3 className="text-base font-bold text-navy">{sec.name}</h3>
-                  <span className="text-xs text-outline">{sectionConform}/{sectionTotal} conformes</span>
+                  <span className="text-xs text-outline">{sectionConform}/{sectionItems.length} conformes</span>
                 </div>
               </div>
               <div className="space-y-2">
@@ -196,13 +211,7 @@ export default function ExecutionDetailPage() {
                   if (!resp) return null;
                   const isConform = resp.answer === "conform";
                   return (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "flex items-start gap-3 p-4 rounded-xl border",
-                        isConform ? "border-tertiary/20 bg-tertiary-fixed/5" : "border-error/20 bg-error-container/5"
-                      )}
-                    >
+                    <div key={item.id} className={cn("flex items-start gap-3 p-4 rounded-xl border", isConform ? "border-tertiary/20 bg-tertiary-fixed/5" : "border-error/20 bg-error-container/5")}>
                       <span className={cn("material-symbols-outlined text-[20px] mt-0.5 filled", isConform ? "text-tertiary" : "text-error")}>
                         {isConform ? "check_circle" : "cancel"}
                       </span>
