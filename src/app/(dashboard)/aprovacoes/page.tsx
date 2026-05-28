@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 
 interface Execution {
@@ -21,9 +23,19 @@ interface Execution {
 }
 
 export default function AprovacoesPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingTemplates, setPendingTemplates] = useState<{ name: string; deadline_time: string | null }[]>([]);
+
+  // Only admin/master can access this page
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.role === "operator") {
+      router.push("/checklists");
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -87,12 +99,16 @@ export default function AprovacoesPage() {
     setExecutions((prev) => prev.filter((e) => e.id !== id));
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <span className="material-symbols-outlined text-primary text-[40px] animate-spin">progress_activity</span>
       </div>
     );
+  }
+
+  if (!user || user.role === "operator") {
+    return null;
   }
 
   return (

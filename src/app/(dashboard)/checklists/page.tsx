@@ -251,7 +251,7 @@ export default function ChecklistsPage() {
       )}
 
       {/* Models library */}
-      <div>
+      {(user?.role === "admin" || user?.role === "master") && (<div>
         <button onClick={() => setShowModels(!showModels)} className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer">
           <span className="material-symbols-outlined text-[18px]">{showModels ? "expand_less" : "auto_awesome"}</span>
           {showModels ? "Fechar modelos" : "Explorar modelos prontos"}
@@ -292,9 +292,11 @@ export default function ChecklistsPage() {
             })}
           </div>
         )}
-      </div>
+      </div>)}
 
-      <FloatingActionButton onClick={() => router.push("/checklists/novo")} />
+      {(user?.role === "admin" || user?.role === "master") && (
+        <FloatingActionButton onClick={() => router.push("/checklists/novo")} />
+      )}
     </div>
   );
 }

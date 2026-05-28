@@ -46,6 +46,14 @@ function NovoChecklistContent() {
   const editId = searchParams.get("id");
   const { user } = useAuth();
 
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!user) return;
+    if (user.role !== "admin" && user.role !== "master") {
+      router.push("/checklists");
+    }
+  }, [user, router]);
+
   const [dbId, setDbId] = useState<string | null>(editId);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
