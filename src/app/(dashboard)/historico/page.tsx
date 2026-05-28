@@ -70,7 +70,7 @@ export default function HistoricoPage() {
           {executions.map((exec) => {
             const status = statusBadge[exec.status] || { label: exec.status, variant: "pending" as const };
             return (
-              <Card key={exec.id}>
+              <Link key={exec.id} href={`/historico/${exec.id}`} className="block"><Card className="hover:shadow-md transition-shadow">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex-1">
                     <Badge variant={status.variant} className="mb-2">{status.label}</Badge>
@@ -87,7 +87,7 @@ export default function HistoricoPage() {
                   </div>
                   <ScoreRing score={exec.score} size={64} strokeWidth={6} />
                 </div>
-              </Card>
+              </Card></Link>
             );
           })}
         </div>

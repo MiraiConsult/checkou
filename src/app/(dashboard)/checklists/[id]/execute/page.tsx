@@ -101,19 +101,17 @@ export default function ExecuteChecklistPage() {
 
     // Get first unit for this org (or null)
     const { data: units } = await supabase.from("units").select("id").limit(1);
-    const unitId = units?.[0]?.id;
+    const unitId = units?.[0]?.id || null;
 
-    if (unitId) {
-      await supabase.from("checklist_executions").insert({
-        template_id: templateId,
-        unit_id: unitId,
-        operator_id: user.id,
-        status: "completed",
-        score,
-        responses,
-        completed_at: new Date().toISOString(),
-      });
-    }
+    await supabase.from("checklist_executions").insert({
+      template_id: templateId,
+      unit_id: unitId,
+      operator_id: user.id,
+      status: "completed",
+      score,
+      responses,
+      completed_at: new Date().toISOString(),
+    });
 
     setSubmitted(true);
     setTimeout(() => router.push("/checklists"), 1500);

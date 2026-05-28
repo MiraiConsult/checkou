@@ -271,7 +271,7 @@ export default function DashboardPage() {
                   {data!.executions.map((exec) => {
                     const status = statusMap[exec.status] || { label: exec.status, variant: "pending" as const };
                     return (
-                      <tr key={exec.id} className="hover:bg-surface-container-low/50 transition-colors">
+                      <tr key={exec.id} className="hover:bg-surface-container-low/50 transition-colors cursor-pointer" onClick={() => { router.push(`/historico/${exec.id}`); }}>
                         <td className="py-3 pr-4"><span className="text-sm font-medium text-on-surface">{exec.checklist}</span></td>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2">
