@@ -26,15 +26,11 @@ export default function LoginPage() {
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
     if (error) {
-      setError(error.message === "Invalid login credentials"
-        ? "Email ou senha incorretos"
-        : error.message);
+      setError(error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message);
       setLoading(false);
       return;
     }
-
     router.push("/");
     router.refresh();
   };
@@ -47,9 +43,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: signupName || email.split("@")[0] },
-      },
+      options: { data: { full_name: signupName || email.split("@")[0] } },
     });
 
     if (error) {
@@ -58,16 +52,12 @@ export default function LoginPage() {
       return;
     }
 
-    // Auto-login after signup (if email confirmation is disabled)
     const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
     if (!loginError) {
       router.push("/");
       router.refresh();
     } else {
-      setError("");
       setShowSignup(false);
-      setMagicLinkSent(false);
-      // Show success - user needs to confirm email
       setResetSent(true);
       setTimeout(() => setResetSent(false), 5000);
     }
@@ -78,15 +68,9 @@ export default function LoginPage() {
     if (!email.trim()) return;
     setError("");
     setLoading(true);
-
     const { error } = await supabase.auth.signInWithOtp({ email });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setMagicLinkSent(true);
-      setTimeout(() => setMagicLinkSent(false), 6000);
-    }
+    if (error) setError(error.message);
+    else { setMagicLinkSent(true); setTimeout(() => setMagicLinkSent(false), 6000); }
     setLoading(false);
   };
 
@@ -94,15 +78,9 @@ export default function LoginPage() {
     if (!email.trim()) return;
     setError("");
     setLoading(true);
-
     const { error } = await supabase.auth.resetPasswordForEmail(email);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setResetSent(true);
-      setTimeout(() => { setResetSent(false); setShowForgotPassword(false); }, 4000);
-    }
+    if (error) setError(error.message);
+    else { setResetSent(true); setTimeout(() => { setResetSent(false); setShowForgotPassword(false); }, 4000); }
     setLoading(false);
   };
 
@@ -112,7 +90,6 @@ export default function LoginPage() {
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
 
       <div className="w-full max-w-[440px] mx-auto px-6 relative z-10">
-        {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-xl shadow-primary/30">
@@ -123,9 +100,7 @@ export default function LoginPage() {
           <p className="text-sm text-on-surface-variant">Gestão operacional inteligente</p>
         </div>
 
-        {/* Form card */}
         <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-xl border border-outline-variant/10">
-          {/* Error message */}
           {error && (
             <div className="mb-6 py-3 px-4 bg-error-container/20 text-error rounded-xl text-sm font-medium flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">error</span>
@@ -133,13 +108,12 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Forgot password */}
           {showForgotPassword ? (
             <div className="space-y-5">
               <h2 className="text-xl font-bold text-navy mb-1">Recuperar Senha</h2>
               <p className="text-sm text-on-surface-variant">Digite seu email para receber um link de recuperação.</p>
               <div>
-                <label className="block text-sm font-semibold text-on-surface mb-2">Email corporativo</label>
+                <label className="block text-sm font-semibold text-on-surface mb-2">Email</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">mail</span>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@empresa.com"
@@ -149,19 +123,16 @@ export default function LoginPage() {
               {resetSent ? (
                 <div className="py-3 bg-tertiary-fixed/20 text-tertiary rounded-xl flex items-center justify-center gap-2 font-bold text-sm">
                   <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                  Link de recuperação enviado!
+                  Link enviado!
                 </div>
               ) : (
                 <Button className="w-full py-3" onClick={handleForgotPassword} disabled={loading}>
                   {loading ? "Enviando..." : "Enviar Link de Recuperação"}
                 </Button>
               )}
-              <button onClick={() => { setShowForgotPassword(false); setError(""); }} className="w-full text-sm text-primary font-semibold hover:underline cursor-pointer text-center">
-                Voltar ao login
-              </button>
+              <button onClick={() => { setShowForgotPassword(false); setError(""); }} className="w-full text-sm text-primary font-semibold hover:underline cursor-pointer text-center">Voltar ao login</button>
             </div>
 
-          /* Signup */
           ) : showSignup ? (
             <div className="space-y-5">
               <h2 className="text-xl font-bold text-navy mb-1">Criar Conta</h2>
@@ -198,17 +169,13 @@ export default function LoginPage() {
                   {loading ? "Criando conta..." : "Criar Conta"}
                 </Button>
               </form>
-              <button onClick={() => { setShowSignup(false); setError(""); }} className="w-full text-sm text-primary font-semibold hover:underline cursor-pointer text-center">
-                Já tenho conta — Entrar
-              </button>
+              <button onClick={() => { setShowSignup(false); setError(""); }} className="w-full text-sm text-primary font-semibold hover:underline cursor-pointer text-center">Já tenho conta — Entrar</button>
             </div>
 
-          /* Login */
           ) : (
             <>
               <h2 className="text-xl font-bold text-navy mb-1">Bem-vindo de volta</h2>
               <p className="text-sm text-on-surface-variant mb-8">Acesse sua conta para continuar</p>
-
               <form className="space-y-5" onSubmit={handleLogin}>
                 <div>
                   <label className="block text-sm font-semibold text-on-surface mb-2">Email corporativo</label>
@@ -221,9 +188,7 @@ export default function LoginPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-semibold text-on-surface">Senha</label>
-                    <button type="button" onClick={() => { setShowForgotPassword(true); setError(""); }} className="text-xs text-primary font-semibold hover:underline cursor-pointer">
-                      Esqueceu a senha?
-                    </button>
+                    <button type="button" onClick={() => { setShowForgotPassword(true); setError(""); }} className="text-xs text-primary font-semibold hover:underline cursor-pointer">Esqueceu a senha?</button>
                   </div>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">lock</span>
@@ -238,13 +203,11 @@ export default function LoginPage() {
                   {loading ? "Entrando..." : "Entrar"}
                 </Button>
               </form>
-
               <div className="flex items-center gap-4 my-6">
                 <div className="flex-1 h-px bg-outline-variant/30" />
                 <span className="text-xs text-outline font-medium uppercase">ou</span>
                 <div className="flex-1 h-px bg-outline-variant/30" />
               </div>
-
               {magicLinkSent ? (
                 <div className="w-full py-3 bg-tertiary-fixed/20 text-tertiary rounded-xl flex items-center justify-center gap-2 font-bold text-sm">
                   <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -260,14 +223,10 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-on-surface-variant">
             {showSignup ? "Já tem conta? " : "Não possui conta? "}
-            <button
-              onClick={() => { setShowSignup(!showSignup); setShowForgotPassword(false); setError(""); }}
-              className="text-primary font-semibold hover:underline cursor-pointer"
-            >
+            <button onClick={() => { setShowSignup(!showSignup); setShowForgotPassword(false); setError(""); }} className="text-primary font-semibold hover:underline cursor-pointer">
               {showSignup ? "Fazer login" : "Criar conta"}
             </button>
           </p>

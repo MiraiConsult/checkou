@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils/cn";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { icon: "dashboard", label: "Dashboard", href: "/" },
@@ -88,7 +88,7 @@ export function SideNavBar() {
             <span className="text-sm font-bold text-primary">{initials}</span>
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-semibold text-white truncate">{user?.name || "Carregando..."}</p>
+            <p className="text-sm font-semibold text-white truncate">{user?.name || "..."}</p>
             <p className="text-[11px] text-slate-400 truncate">{roleLabel}</p>
           </div>
           <span className="material-symbols-outlined text-slate-500 text-[18px]">
