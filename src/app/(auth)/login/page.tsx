@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [signupName, setSignupName] = useState("");
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,16 +60,6 @@ export default function LoginPage() {
       setResetSent(true);
       setTimeout(() => setResetSent(false), 5000);
     }
-    setLoading(false);
-  };
-
-  const handleMagicLink = async () => {
-    if (!email.trim()) return;
-    setError("");
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) setError(error.message);
-    else { setMagicLinkSent(true); setTimeout(() => setMagicLinkSent(false), 6000); }
     setLoading(false);
   };
 
@@ -203,22 +192,6 @@ export default function LoginPage() {
                   {loading ? "Entrando..." : "Entrar"}
                 </Button>
               </form>
-              <div className="flex items-center gap-4 my-6">
-                <div className="flex-1 h-px bg-outline-variant/30" />
-                <span className="text-xs text-outline font-medium uppercase">ou</span>
-                <div className="flex-1 h-px bg-outline-variant/30" />
-              </div>
-              {magicLinkSent ? (
-                <div className="w-full py-3 bg-tertiary-fixed/20 text-tertiary rounded-xl flex items-center justify-center gap-2 font-bold text-sm">
-                  <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                  Magic Link enviado para {email}
-                </div>
-              ) : (
-                <Button variant="outline" className="w-full" onClick={handleMagicLink} disabled={loading}>
-                  <span className="material-symbols-outlined text-[18px]">bolt</span>
-                  Solicitar Magic Link
-                </Button>
-              )}
             </>
           )}
         </div>
