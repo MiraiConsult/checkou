@@ -42,7 +42,10 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: signupName || email.split("@")[0] } },
+      options: {
+        data: { full_name: signupName || email.split("@")[0] },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (error) {
@@ -67,7 +70,9 @@ export default function LoginPage() {
     if (!email.trim()) return;
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
     if (error) setError(error.message);
     else { setResetSent(true); setTimeout(() => { setResetSent(false); setShowForgotPassword(false); }, 4000); }
     setLoading(false);
