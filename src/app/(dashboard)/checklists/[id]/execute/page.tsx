@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface QuestionItem {
   id: string;
@@ -27,6 +28,7 @@ export default function ExecuteChecklistPage() {
   const params = useParams();
   const templateId = params.id as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
 
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
@@ -40,6 +42,9 @@ export default function ExecuteChecklistPage() {
   const [taskGenerated, setTaskGenerated] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [photoTargetId, setPhotoTargetId] = useState<string | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   // Load template from Supabase
   useEffect(() => {
@@ -93,11 +98,32 @@ export default function ExecuteChecklistPage() {
   const missingPhotos = questions.filter((q) => q.required_evidence && answers[q.id] && !photos[q.id]);
   const canSubmit = totalAnswered === questions.length && missingPhotos.length === 0;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!canSubmit) return;
+    setPassword("");
+    setPasswordError("");
+    setShowPasswordModal(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!password.trim()) {
+      setPasswordError("Digite sua senha para confirmar.");
+      return;
+    }
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+
+    // Verify password via signInWithPassword
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user?.email || "",
+      password,
+    });
+    if (signInError) {
+      setPasswordError("Senha incorreta. Tente novamente.");
+      return;
+    }
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
 
     const score = totalAnswered > 0 ? Math.round((conformCount / totalAnswered) * 100) : 0;
     const responses = Object.entries(answers).map(([itemId, answer]) => ({
@@ -114,13 +140,14 @@ export default function ExecuteChecklistPage() {
     await supabase.from("checklist_executions").insert({
       template_id: templateId,
       unit_id: unitId,
-      operator_id: user.id,
+      operator_id: authUser.id,
       status: "completed",
       score,
       responses,
       completed_at: new Date().toISOString(),
     });
 
+    setShowPasswordModal(false);
     setSubmitted(true);
     setTimeout(() => router.push("/checklists"), 1500);
   };
@@ -150,6 +177,37 @@ export default function ExecuteChecklistPage() {
     <div>
       <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
 
+      {/* Password confirmation modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowPasswordModal(false)}>
+          <div className="bg-surface-container-lowest rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-primary text-[24px]">lock</span>
+            </div>
+            <h3 className="text-lg font-bold text-navy text-center mb-2">Confirmar Identidade</h3>
+            <p className="text-sm text-on-surface-variant text-center mb-4">
+              Digite sua senha para confirmar o envio do checklist.
+            </p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setPasswordError(""); }}
+              placeholder="Sua senha"
+              className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-outline border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all mb-2"
+              onKeyDown={(e) => { if (e.key === "Enter") handleConfirmSubmit(); }}
+              autoFocus
+            />
+            {passwordError && (
+              <p className="text-xs text-error mb-3">{passwordError}</p>
+            )}
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" className="flex-1" onClick={() => setShowPasswordModal(false)}>Cancelar</Button>
+              <Button variant="primary" className="flex-1" onClick={handleConfirmSubmit}>Confirmar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Desktop view */}
       <div className="space-y-6">
         {/* Header */}
@@ -159,6 +217,12 @@ export default function ExecuteChecklistPage() {
               <div>
                 <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Execução em Andamento</p>
                 <h2 className="text-2xl font-extrabold text-navy tracking-tight">{template?.name}</h2>
+                {user && (
+                  <p className="text-sm text-on-surface-variant mt-1">
+                    <span className="material-symbols-outlined text-[14px] align-middle mr-1">person</span>
+                    Operador: <span className="font-semibold text-navy">{user.name}</span>
+                  </p>
+                )}
               </div>
               <button onClick={() => router.push("/checklists")} className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
                 <span className="material-symbols-outlined text-on-surface-variant">close</span>

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 
 interface ExecSummary {
@@ -16,6 +18,11 @@ interface ExecSummary {
   operator_name: string;
 }
 
+interface ProfileOption {
+  id: string;
+  full_name: string;
+}
+
 const statusLabel: Record<string, { label: string; variant: "success" | "error" | "info" | "pending" }> = {
   completed: { label: "Concluído", variant: "info" },
   approved: { label: "Aprovado", variant: "success" },
@@ -24,46 +31,87 @@ const statusLabel: Record<string, { label: string; variant: "success" | "error" 
 };
 
 export default function RelatoriosPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({ templates: 0, executions: 0, avgScore: 0, approved: 0, rejected: 0 });
   const [recentExecs, setRecentExecs] = useState<ExecSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+
+  // Fetch profiles for user filter (only for admin/master)
+  useEffect(() => {
+    if (!user || user.role === "operator") return;
+    const supabase = createClient();
+    supabase.from("profiles").select("id, full_name").then(({ data }) => {
+      setProfiles(data || []);
+    });
+  }, [user]);
+
+  const fetchAll = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const supabase = createClient();
+
+    const [templatesRes] = await Promise.all([
+      supabase.from("checklist_templates").select("id", { count: "exact", head: true }).eq("status", "published"),
+    ]);
+
+    // Build executions query with filters
+    let execsQuery = supabase
+      .from("checklist_executions")
+      .select("id, score, status, started_at, template_id, operator_id")
+      .order("started_at", { ascending: false })
+      .limit(50);
+
+    // Operators can only see their own data
+    if (user.role === "operator") {
+      execsQuery = execsQuery.eq("operator_id", user.id);
+    } else if (selectedUserId) {
+      execsQuery = execsQuery.eq("operator_id", selectedUserId);
+    }
+
+    if (startDate) {
+      execsQuery = execsQuery.gte("started_at", startDate);
+    }
+    if (endDate) {
+      execsQuery = execsQuery.lte("started_at", endDate + "T23:59:59");
+    }
+
+    const { data: execsData } = await execsQuery;
+    const execs = execsData || [];
+    const totalExecs = execs.length;
+    const avgScore = totalExecs > 0 ? Math.round(execs.reduce((s, e) => s + Number(e.score), 0) / totalExecs) : 0;
+    const approved = execs.filter((e) => e.status === "approved").length;
+    const rejected = execs.filter((e) => e.status === "rejected").length;
+
+    setStats({ templates: templatesRes.count || 0, executions: totalExecs, avgScore, approved, rejected });
+
+    if (execs.length > 0) {
+      const tIds = [...new Set(execs.map((e) => e.template_id))];
+      const oIds = [...new Set(execs.map((e) => e.operator_id))];
+      const [tRes, oRes] = await Promise.all([
+        supabase.from("checklist_templates").select("id, name").in("id", tIds),
+        supabase.from("profiles").select("id, full_name").in("id", oIds),
+      ]);
+      const tMap = new Map((tRes.data || []).map((t) => [t.id, t.name]));
+      const oMap = new Map((oRes.data || []).map((o) => [o.id, o.full_name]));
+      setRecentExecs(execs.map((e) => ({
+        id: e.id, score: Number(e.score), status: e.status, started_at: e.started_at,
+        template_name: tMap.get(e.template_id) || "—",
+        operator_name: oMap.get(e.operator_id) || "—",
+      })));
+    } else {
+      setRecentExecs([]);
+    }
+
+    setLoading(false);
+  }, [user, startDate, endDate, selectedUserId]);
 
   useEffect(() => {
-    const supabase = createClient();
-    const fetchAll = async () => {
-      const [templatesRes, execsRes] = await Promise.all([
-        supabase.from("checklist_templates").select("id", { count: "exact", head: true }).eq("status", "published"),
-        supabase.from("checklist_executions").select("id, score, status, started_at, template_id, operator_id").order("started_at", { ascending: false }).limit(20),
-      ]);
-
-      const execs = execsRes.data || [];
-      const totalExecs = execs.length;
-      const avgScore = totalExecs > 0 ? Math.round(execs.reduce((s, e) => s + Number(e.score), 0) / totalExecs) : 0;
-      const approved = execs.filter((e) => e.status === "approved").length;
-      const rejected = execs.filter((e) => e.status === "rejected").length;
-
-      setStats({ templates: templatesRes.count || 0, executions: totalExecs, avgScore, approved, rejected });
-
-      if (execs.length > 0) {
-        const tIds = [...new Set(execs.map((e) => e.template_id))];
-        const oIds = [...new Set(execs.map((e) => e.operator_id))];
-        const [tRes, oRes] = await Promise.all([
-          supabase.from("checklist_templates").select("id, name").in("id", tIds),
-          supabase.from("profiles").select("id, full_name").in("id", oIds),
-        ]);
-        const tMap = new Map((tRes.data || []).map((t) => [t.id, t.name]));
-        const oMap = new Map((oRes.data || []).map((o) => [o.id, o.full_name]));
-        setRecentExecs(execs.map((e) => ({
-          id: e.id, score: Number(e.score), status: e.status, started_at: e.started_at,
-          template_name: tMap.get(e.template_id) || "—",
-          operator_name: oMap.get(e.operator_id) || "—",
-        })));
-      }
-
-      setLoading(false);
-    };
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   if (loading) {
     return (
@@ -79,6 +127,49 @@ export default function RelatoriosPage() {
         <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Business Intelligence</p>
         <h2 className="text-3xl font-extrabold text-navy tracking-tight">Relatórios & Análises</h2>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <div className="flex flex-col md:flex-row md:items-end gap-4">
+          <div className="flex-1">
+            <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Data Início</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Data Fim</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          {user?.role !== "operator" && (
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Operador</label>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="w-full bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Todos</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.full_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <Button variant="outline" onClick={() => { setStartDate(""); setEndDate(""); setSelectedUserId(""); }}>
+            <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+            Limpar
+          </Button>
+        </div>
+      </Card>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

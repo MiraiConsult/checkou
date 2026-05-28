@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 
 interface Execution {
@@ -25,17 +26,26 @@ const statusBadge: Record<string, { label: string; variant: "success" | "error" 
 };
 
 export default function HistoricoPage() {
+  const { user } = useAuth();
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
     const supabase = createClient();
     const fetchData = async () => {
-      const { data: execs } = await supabase
+      let query = supabase
         .from("checklist_executions")
         .select("id, score, status, started_at, template_id, operator_id")
         .order("started_at", { ascending: false })
         .limit(50);
+
+      // Operators can only see their own executions
+      if (user.role === "operator") {
+        query = query.eq("operator_id", user.id);
+      }
+
+      const { data: execs } = await query;
 
       if (execs && execs.length > 0) {
         const tIds = [...new Set(execs.map((e) => e.template_id))];
@@ -56,7 +66,7 @@ export default function HistoricoPage() {
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (
