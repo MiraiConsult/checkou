@@ -1,36 +1,34 @@
 "use client";
 
-import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useUnit, unitTabs } from "@/hooks/useUnit";
 import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
 
 export function TopNavBar() {
-  const { activeUnit, setActiveUnit } = useUnit();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout } = useAuth();
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const [orgName, setOrgName] = useState("");
+
+  useEffect(() => {
+    if (!user?.organization_id) return;
+    const supabase = createClient();
+    supabase.from("organizations").select("name").eq("id", user.organization_id).single()
+      .then(({ data }) => { if (data) setOrgName(data.name); });
+  }, [user?.organization_id]);
 
   return (
     <header className="hidden md:flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
-      {/* Context tabs */}
-      <div className="flex items-center gap-1">
-        {unitTabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveUnit(tab.id)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium transition-all cursor-pointer",
-              activeUnit === tab.id
-                ? "text-primary border-b-2 border-primary"
-                : "text-on-surface-variant hover:text-on-surface"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Org name */}
+      <div className="flex items-center gap-3">
+        {orgName && (
+          <div className="flex items-center gap-2 text-sm font-semibold text-navy">
+            <span className="material-symbols-outlined text-primary text-[18px]">domain</span>
+            {orgName}
+          </div>
+        )}
       </div>
 
       {/* Right actions */}
@@ -39,7 +37,6 @@ export function TopNavBar() {
 
         <Link href="/configuracoes/alertas" className="relative p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
           <span className="material-symbols-outlined text-on-surface-variant text-[22px]">notifications</span>
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full" />
         </Link>
 
         <Link href="/relatorios" className="p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
@@ -49,10 +46,7 @@ export function TopNavBar() {
         <div className="h-6 w-px bg-slate-200" />
 
         <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 cursor-pointer"
-          >
+          <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-2 cursor-pointer">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               <span className="text-xs font-bold text-primary">{initials}</span>
             </div>
