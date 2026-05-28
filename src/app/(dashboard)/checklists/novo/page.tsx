@@ -160,15 +160,18 @@ function NovoChecklistContent() {
   };
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
-  const isValid = name.trim() !== "" && sections.every((s) => s.name.trim() !== "" && s.items.every((i) => i.question.trim() !== ""));
+  const isValid = name.trim() !== "" && sections.some((s) => s.name.trim() !== "");
 
   const handlePublish = async () => {
     if (!isValid || !user?.organization_id) return;
     setSaving(true);
     const supabase = createClient();
+    const cleanSections = sections
+      .filter((s) => s.name.trim())
+      .map((s) => ({ name: s.name, items: s.items.filter((i) => i.question.trim()) }));
     const payload = {
       name, description, icon,
-      sections: sections.map((s) => ({ name: s.name, items: s.items })),
+      sections: cleanSections,
       organization_id: user.organization_id,
       status: "published" as const,
     };
