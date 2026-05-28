@@ -102,12 +102,14 @@ export default function ChecklistsPage() {
           <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Gestão de Checklists</p>
           <h2 className="text-3xl font-extrabold text-navy tracking-tight">Templates de Verificação</h2>
         </div>
-        <Link href="/checklists/novo">
-          <Button variant="primary">
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            Novo Checklist
-          </Button>
-        </Link>
+        {(user?.role === "admin" || user?.role === "master") && (
+          <Link href="/checklists/novo">
+            <Button variant="primary">
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              Novo Checklist
+            </Button>
+          </Link>
+        )}
       </div>
 
       {deleteConfirm && (
@@ -140,21 +142,23 @@ export default function ChecklistsPage() {
                 <div className="flex items-center gap-2">
                   {tmpl.status === "draft" && <Badge variant="warning">Rascunho</Badge>}
                   <Badge variant="info">v{tmpl.version}</Badge>
-                  <div className="relative">
-                    <button onClick={() => setMenuOpen(menuOpen === tmpl.id ? null : tmpl.id)} className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                      <span className="material-symbols-outlined text-outline text-[18px]">more_horiz</span>
-                    </button>
-                    {menuOpen === tmpl.id && (
-                      <div className="absolute right-0 top-8 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[160px]">
-                        <button onClick={() => { setMenuOpen(null); router.push(`/checklists/novo?id=${tmpl.id}`); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
-                          <span className="material-symbols-outlined text-[16px]">edit</span>Editar
-                        </button>
-                        <button onClick={() => { setMenuOpen(null); setDeleteConfirm(tmpl.id); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
-                          <span className="material-symbols-outlined text-[16px]">delete</span>Excluir
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {user?.role === "admin" || user?.role === "master" ? (
+                    <div className="relative">
+                      <button onClick={() => setMenuOpen(menuOpen === tmpl.id ? null : tmpl.id)} className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+                        <span className="material-symbols-outlined text-outline text-[18px]">more_horiz</span>
+                      </button>
+                      {menuOpen === tmpl.id && (
+                        <div className="absolute right-0 top-8 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[160px]">
+                          <button onClick={() => { setMenuOpen(null); router.push(`/checklists/novo?id=${tmpl.id}`); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
+                            <span className="material-symbols-outlined text-[16px]">edit</span>Editar
+                          </button>
+                          <button onClick={() => { setMenuOpen(null); setDeleteConfirm(tmpl.id); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
+                            <span className="material-symbols-outlined text-[16px]">delete</span>Excluir
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <h3 className="text-base font-bold text-navy mb-1">{tmpl.name}</h3>
@@ -169,9 +173,11 @@ export default function ChecklistsPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-5 pt-4 border-t border-outline-variant/10">
-                <button onClick={() => router.push(`/checklists/novo?id=${tmpl.id}`)} className="flex-1 text-xs font-semibold text-on-surface-variant hover:text-primary py-2 rounded-lg hover:bg-primary/5 transition-all cursor-pointer">
-                  <span className="material-symbols-outlined text-[16px] align-middle mr-1">edit</span>Editar
-                </button>
+                {(user?.role === "admin" || user?.role === "master") && (
+                  <button onClick={() => router.push(`/checklists/novo?id=${tmpl.id}`)} className="flex-1 text-xs font-semibold text-on-surface-variant hover:text-primary py-2 rounded-lg hover:bg-primary/5 transition-all cursor-pointer">
+                    <span className="material-symbols-outlined text-[16px] align-middle mr-1">edit</span>Editar
+                  </button>
+                )}
                 <Link href={`/checklists/${tmpl.id}/execute`} className="flex-1 text-xs font-semibold text-primary py-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-all text-center cursor-pointer">
                   <span className="material-symbols-outlined text-[16px] align-middle mr-1">play_arrow</span>Executar
                 </Link>
@@ -180,13 +186,15 @@ export default function ChecklistsPage() {
           );
         })}
 
-        <Link href="/checklists/novo" className="border-2 border-dashed border-outline-variant/30 rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group min-h-[240px]">
-          <div className="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
-            <span className="material-symbols-outlined text-outline text-[28px] group-hover:text-primary transition-colors">add</span>
-          </div>
-          <p className="text-sm font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Criar Novo Template</p>
-          <p className="text-xs text-outline mt-1">Adicione um novo checklist</p>
-        </Link>
+        {(user?.role === "admin" || user?.role === "master") && (
+          <Link href="/checklists/novo" className="border-2 border-dashed border-outline-variant/30 rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group min-h-[240px]">
+            <div className="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
+              <span className="material-symbols-outlined text-outline text-[28px] group-hover:text-primary transition-colors">add</span>
+            </div>
+            <p className="text-sm font-semibold text-on-surface-variant group-hover:text-primary transition-colors">Criar Novo Template</p>
+            <p className="text-xs text-outline mt-1">Adicione um novo checklist</p>
+          </Link>
+        )}
       </div>
 
       {/* Model preview modal */}
