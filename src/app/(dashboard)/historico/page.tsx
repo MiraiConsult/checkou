@@ -13,9 +13,8 @@ interface Execution {
   score: number;
   status: string;
   started_at: string;
-  checklist_templates: { name: string } | null;
-  profiles: { full_name: string } | null;
-  units: { name: string; location: string } | null;
+  template_name: string;
+  operator_name: string;
 }
 
 const statusBadge: Record<string, { label: string; variant: "success" | "error" | "info" | "pending" }> = {
@@ -31,11 +30,32 @@ export default function HistoricoPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_executions")
-      .select("id, score, status, started_at, checklist_templates(name), profiles(full_name), units(name, location)")
-      .order("started_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => { setExecutions((data as unknown as Execution[]) || []); setLoading(false); });
+    const fetchData = async () => {
+      const { data: execs } = await supabase
+        .from("checklist_executions")
+        .select("id, score, status, started_at, template_id, operator_id")
+        .order("started_at", { ascending: false })
+        .limit(50);
+
+      if (execs && execs.length > 0) {
+        const tIds = [...new Set(execs.map((e) => e.template_id))];
+        const oIds = [...new Set(execs.map((e) => e.operator_id))];
+        const [tRes, oRes] = await Promise.all([
+          supabase.from("checklist_templates").select("id, name").in("id", tIds),
+          supabase.from("profiles").select("id, full_name").in("id", oIds),
+        ]);
+        const tMap = new Map((tRes.data || []).map((t) => [t.id, t.name]));
+        const oMap = new Map((oRes.data || []).map((o) => [o.id, o.full_name]));
+
+        setExecutions(execs.map((e) => ({
+          id: e.id, score: Number(e.score), status: e.status, started_at: e.started_at,
+          template_name: tMap.get(e.template_id) || "—",
+          operator_name: oMap.get(e.operator_id) || "—",
+        })));
+      }
+      setLoading(false);
+    };
+    fetchData();
   }, []);
 
   if (loading) {
@@ -66,28 +86,34 @@ export default function HistoricoPage() {
           </Link>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {executions.map((exec) => {
-            const status = statusBadge[exec.status] || { label: exec.status, variant: "pending" as const };
+            const status = statusBadge[exec.status] || statusBadge.completed;
+            const initials = exec.operator_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
             return (
-              <Link key={exec.id} href={`/historico/${exec.id}`} className="block"><Card className="hover:shadow-md transition-shadow">
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="flex-1">
-                    <Badge variant={status.variant} className="mb-2">{status.label}</Badge>
-                    <h3 className="text-lg font-bold text-navy">{exec.checklist_templates?.name || "—"}</h3>
-                    <div className="flex items-center gap-4 mt-1">
-                      <span className="text-xs text-on-surface-variant flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">location_on</span>
-                        {exec.units?.name || "—"}
-                      </span>
-                      <span className="text-xs text-outline">
-                        {new Date(exec.started_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      </span>
+              <Link key={exec.id} href={`/historico/${exec.id}`} className="block">
+                <Card className="hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <ScoreRing score={exec.score} size={52} strokeWidth={5} />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-navy">{exec.template_name}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-primary">{initials}</span>
+                          </div>
+                          <span className="text-xs text-on-surface-variant">{exec.operator_name}</span>
+                        </div>
+                        <span className="text-xs text-outline">
+                          {new Date(exec.started_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
                     </div>
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                    <span className="material-symbols-outlined text-outline text-[18px]">chevron_right</span>
                   </div>
-                  <ScoreRing score={exec.score} size={64} strokeWidth={6} />
-                </div>
-              </Card></Link>
+                </Card>
+              </Link>
             );
           })}
         </div>

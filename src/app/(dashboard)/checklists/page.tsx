@@ -27,6 +27,7 @@ export default function ChecklistsPage() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [execCounts, setExecCounts] = useState<Record<string, number>>({});
   const [showModels, setShowModels] = useState(false);
   const [copying, setCopying] = useState<number | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -53,9 +54,22 @@ export default function ChecklistsPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_templates").select("id, icon, name, version, description, sections, status")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => { setTemplates(data || []); setLoading(false); });
+    const fetchAll = async () => {
+      const { data } = await supabase.from("checklist_templates")
+        .select("id, icon, name, version, description, sections, status")
+        .order("created_at", { ascending: false });
+      setTemplates(data || []);
+
+      // Fetch execution counts per template
+      const { data: execs } = await supabase.from("checklist_executions").select("template_id");
+      if (execs) {
+        const counts: Record<string, number> = {};
+        execs.forEach((e) => { counts[e.template_id] = (counts[e.template_id] || 0) + 1; });
+        setExecCounts(counts);
+      }
+      setLoading(false);
+    };
+    fetchAll();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -148,6 +162,11 @@ export default function ChecklistsPage() {
               <div className="flex items-center gap-4 text-xs text-outline">
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">folder</span>{secs.length} seções</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">checklist</span>{itemCount} itens</span>
+                {(execCounts[tmpl.id] || 0) > 0 && (
+                  <Link href={`/historico?template=${tmpl.id}`} className="flex items-center gap-1 text-primary font-semibold hover:underline">
+                    <span className="material-symbols-outlined text-[14px]">history</span>{execCounts[tmpl.id]} execuções
+                  </Link>
+                )}
               </div>
               <div className="flex items-center gap-2 mt-5 pt-4 border-t border-outline-variant/10">
                 <button onClick={() => router.push(`/checklists/novo?id=${tmpl.id}`)} className="flex-1 text-xs font-semibold text-on-surface-variant hover:text-primary py-2 rounded-lg hover:bg-primary/5 transition-all cursor-pointer">
