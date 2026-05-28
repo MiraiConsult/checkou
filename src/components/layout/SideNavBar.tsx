@@ -5,11 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { icon: "dashboard", label: "Dashboard", href: "/" },
   { icon: "fact_check", label: "Checklists", href: "/checklists" },
-  { icon: "assignment", label: "Tarefas", href: "/tarefas" },
   { icon: "assignment_turned_in", label: "Aprovações", href: "/aprovacoes" },
   { icon: "analytics", label: "Relatórios", href: "/relatorios" },
   { icon: "history", label: "Histórico", href: "/historico" },
@@ -22,7 +22,22 @@ export function SideNavBar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, fetchUser, logout } = useAuth();
 
+  const [pendingAlerts, setPendingAlerts] = useState(0);
+
   useEffect(() => { fetchUser(); }, [fetchUser]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const checkPending = async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { count: templateCount } = await supabase.from("checklist_templates").select("id", { count: "exact", head: true }).eq("status", "published").eq("frequency", "daily");
+      const { count: execCount } = await supabase.from("checklist_executions").select("id", { count: "exact", head: true }).gte("started_at", today);
+      setPendingAlerts(Math.max((templateCount || 0) - (execCount || 0), 0));
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
   const roleLabel = user?.role === "master" ? "Master" : user?.role === "admin" ? "Admin de Grupo" : "Operador";
@@ -62,6 +77,11 @@ export function SideNavBar() {
                 {item.icon}
               </span>
               {item.label}
+              {item.icon === "notifications" && pendingAlerts > 0 && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                  {pendingAlerts}
+                </span>
+              )}
             </Link>
           );
         })}

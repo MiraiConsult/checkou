@@ -51,6 +51,8 @@ function NovoChecklistContent() {
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("fact_check");
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [frequency, setFrequency] = useState("daily");
+  const [deadlineTime, setDeadlineTime] = useState("");
   const [sections, setSections] = useState<Section[]>([
     { id: generateId(), name: "", items: [{ id: generateId(), question: "", required_evidence: false }] },
   ]);
@@ -68,6 +70,8 @@ function NovoChecklistContent() {
           setName(data.name);
           setDescription(data.description);
           setIcon(data.icon);
+          if (data.frequency) setFrequency(data.frequency);
+          if (data.deadline_time) setDeadlineTime(data.deadline_time.slice(0, 5));
           const secs = Array.isArray(data.sections) ? data.sections : [];
           if (secs.length > 0) {
             setSections(secs.map((s: { name: string; items: SectionItem[] }) => ({
@@ -93,6 +97,8 @@ function NovoChecklistContent() {
       name: n,
       description: desc,
       icon: ic,
+      frequency,
+      deadline_time: deadlineTime || null,
       sections: secs.map((s) => ({ name: s.name, items: s.items })),
       organization_id: user.organization_id,
       status: "draft" as const,
@@ -114,7 +120,7 @@ function NovoChecklistContent() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => autoSave(name, description, icon, sections), 2000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [name, description, icon, sections, autoSave]);
+  }, [name, description, icon, sections, frequency, deadlineTime, autoSave]);
 
   const isEditing = !!editId;
 
@@ -170,7 +176,8 @@ function NovoChecklistContent() {
       .filter((s) => s.name.trim())
       .map((s) => ({ name: s.name, items: s.items.filter((i) => i.question.trim()) }));
     const payload = {
-      name, description, icon,
+      name, description, icon, frequency,
+      deadline_time: deadlineTime || null,
       sections: cleanSections,
       organization_id: user.organization_id,
       status: "published" as const,
@@ -242,6 +249,20 @@ function NovoChecklistContent() {
             <div>
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Descrição</label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descreva o objetivo deste checklist..." rows={2} className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-outline border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Periodicidade</label>
+                <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
+                  <option value="daily">Diário</option>
+                  <option value="weekly">Semanal</option>
+                  <option value="monthly">Mensal</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Prazo para responder</label>
+                <input type="time" value={deadlineTime} onChange={(e) => setDeadlineTime(e.target.value)} className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+            </div>
             </div>
           </div>
         </div>

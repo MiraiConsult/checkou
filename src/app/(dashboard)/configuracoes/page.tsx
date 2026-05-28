@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,7 +31,16 @@ interface Unit {
 const tabs = [
   { id: "empresa", label: "Empresa", icon: "domain" },
   { id: "unidades", label: "Unidades / Restaurantes", icon: "storefront" },
+  { id: "usuarios", label: "Usuários", icon: "group" },
 ];
+
+interface UserProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
 
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
@@ -42,6 +52,9 @@ export default function ConfiguracoesPage() {
   const [saved, setSaved] = useState(false);
   const [editingUnit, setEditingUnit] = useState<string | null>(null);
   const [showNewUnit, setShowNewUnit] = useState(false);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [showNewUser, setShowNewUser] = useState(false);
+  const [newUserData, setNewUserData] = useState({ email: "", full_name: "", password: "", role: "operator" });
   const [newUnit, setNewUnit] = useState({ name: "", location: "", phone: "", email: "", cuisine_type: "", operating_hours: "", manager_name: "", capacity: 0 });
 
   useEffect(() => {
@@ -50,9 +63,11 @@ export default function ConfiguracoesPage() {
     Promise.all([
       supabase.from("organizations").select("*").eq("id", user.organization_id).single(),
       supabase.from("units").select("*").eq("organization_id", user.organization_id).order("created_at"),
-    ]).then(([orgRes, unitsRes]) => {
+      supabase.from("profiles").select("id, full_name, email, role, created_at").eq("organization_id", user.organization_id).order("created_at"),
+    ]).then(([orgRes, unitsRes, usersRes]) => {
       setOrg(orgRes.data);
       setUnits(unitsRes.data || []);
+      setUsers(usersRes.data || []);
       setLoading(false);
     });
   }, [user?.organization_id]);
@@ -361,6 +376,108 @@ export default function ConfiguracoesPage() {
                 </Card>
               );
             })
+          )}
+        </div>
+      )}
+
+      {/* USUARIOS TAB */}
+      {activeTab === "usuarios" && (
+        <div className="space-y-6">
+          {user?.role !== "admin" && user?.role !== "master" ? (
+            <Card className="text-center py-16">
+              <span className="material-symbols-outlined text-outline text-[56px] mb-4">lock</span>
+              <h3 className="text-lg font-bold text-navy mb-2">Acesso restrito</h3>
+              <p className="text-sm text-on-surface-variant">Somente administradores podem gerenciar usuários</p>
+            </Card>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-on-surface-variant">
+                  <span className="font-bold text-navy">{users.length}</span> {users.length === 1 ? "usuário" : "usuários"}
+                </p>
+                <Button variant="primary" onClick={() => setShowNewUser(true)}>
+                  <span className="material-symbols-outlined text-[18px]">person_add</span>
+                  Criar Usuário
+                </Button>
+              </div>
+
+              {showNewUser && (
+                <Card className="border-2 border-primary/20">
+                  <h3 className="text-lg font-bold text-navy mb-5">
+                    <span className="material-symbols-outlined text-primary text-[20px] align-middle mr-2">person_add</span>
+                    Criar Novo Usuário
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Nome Completo *</label>
+                      <input type="text" value={newUserData.full_name} onChange={(e) => setNewUserData({ ...newUserData, full_name: e.target.value })} placeholder="Nome do colaborador" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Email *</label>
+                      <input type="email" value={newUserData.email} onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })} placeholder="email@empresa.com" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Senha *</label>
+                      <input type="text" value={newUserData.password} onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })} placeholder="Mínimo 6 caracteres" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Função</label>
+                      <select value={newUserData.role} onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })} className={inputClass}>
+                        <option value="operator">Operador</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button variant="outline" onClick={() => setShowNewUser(false)}>Cancelar</Button>
+                    <Button variant="primary" onClick={async () => {
+                      if (!newUserData.email || !newUserData.password || !user?.organization_id) return;
+                      setSaving(true);
+                      const supabase = createClient();
+                      const { data, error } = await supabase.auth.signUp({
+                        email: newUserData.email,
+                        password: newUserData.password,
+                        options: { data: { full_name: newUserData.full_name, role: newUserData.role, organization_id: user.organization_id } },
+                      });
+                      if (error) { alert(error.message); setSaving(false); return; }
+                      if (data.user) {
+                        setUsers([...users, { id: data.user.id, full_name: newUserData.full_name, email: newUserData.email, role: newUserData.role, created_at: new Date().toISOString() }]);
+                      }
+                      setNewUserData({ email: "", full_name: "", password: "", role: "operator" });
+                      setShowNewUser(false);
+                      setSaving(false);
+                      setSaved(true);
+                      setTimeout(() => setSaved(false), 3000);
+                    }} disabled={saving || !newUserData.email || !newUserData.password || !newUserData.full_name}>
+                      <span className="material-symbols-outlined text-[18px]">save</span>
+                      {saving ? "Criando..." : "Criar Usuário"}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              <div className="space-y-3">
+                {users.map((u) => {
+                  const uInitials = u.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+                  const roleLabels: Record<string, string> = { admin: "Administrador", operator: "Operador", master: "Master" };
+                  return (
+                    <Card key={u.id}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-sm font-bold text-primary">{uInitials}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-navy">{u.full_name}</p>
+                          <p className="text-xs text-on-surface-variant">{u.email}</p>
+                        </div>
+                        <Badge variant={u.role === "admin" ? "info" : "pending"}>{roleLabels[u.role] || u.role}</Badge>
+                        <span className="text-xs text-outline">{new Date(u.created_at).toLocaleDateString("pt-BR")}</span>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       )}

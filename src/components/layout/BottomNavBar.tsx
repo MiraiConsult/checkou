@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils/cn";
 const navItems = [
   { icon: "dashboard", label: "Dashboard", href: "/" },
   { icon: "fact_check", label: "Checklists", href: "/checklists" },
-  { icon: "assignment", label: "Tarefas", href: "/tarefas" },
   { icon: "assignment_turned_in", label: "Aprovações", href: "/aprovacoes" },
-  { icon: "analytics", label: "Relatórios", href: "/relatorios" },
+  { icon: "history", label: "Histórico", href: "/historico" },
+  { icon: "settings", label: "Config", href: "/configuracoes" },
 ];
 
 export function BottomNavBar() {
