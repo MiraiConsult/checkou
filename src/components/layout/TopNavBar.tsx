@@ -5,10 +5,13 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { useState } from "react";
 import Link from "next/link";
 import { useUnit, unitTabs } from "@/hooks/useUnit";
+import { useAuth } from "@/hooks/useAuth";
 
 export function TopNavBar() {
   const { activeUnit, setActiveUnit } = useUnit();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, logout } = useAuth();
+  const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
 
   return (
     <header className="hidden md:flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
@@ -51,23 +54,23 @@ export function TopNavBar() {
             className="flex items-center gap-2 cursor-pointer"
           >
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-xs font-bold text-primary">CS</span>
+              <span className="text-xs font-bold text-primary">{initials}</span>
             </div>
           </button>
           {showUserMenu && (
             <div className="absolute right-0 top-12 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[180px]">
               <div className="px-4 py-3 border-b border-outline-variant/10">
-                <p className="text-sm font-semibold text-navy">Carlos Silva</p>
-                <p className="text-xs text-on-surface-variant">Admin de Grupo</p>
+                <p className="text-sm font-semibold text-navy">{user?.name || "..."}</p>
+                <p className="text-xs text-on-surface-variant">{user?.email}</p>
               </div>
               <Link href="/configuracoes/alertas" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
                 <span className="material-symbols-outlined text-[16px]">settings</span>
                 Configurações
               </Link>
-              <Link href="/login" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
+              <button onClick={() => { setShowUserMenu(false); logout(); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
                 <span className="material-symbols-outlined text-[16px]">logout</span>
                 Sair
-              </Link>
+              </button>
             </div>
           )}
         </div>
