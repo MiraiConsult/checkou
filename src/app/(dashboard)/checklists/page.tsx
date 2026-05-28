@@ -16,6 +16,7 @@ interface Template {
   version: string;
   description: string;
   sections: { name: string; items: unknown[] }[];
+  status: string;
 }
 
 export default function ChecklistsPage() {
@@ -27,7 +28,7 @@ export default function ChecklistsPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_templates").select("id, icon, name, version, description, sections")
+    supabase.from("checklist_templates").select("id, icon, name, version, description, sections, status")
       .order("created_at", { ascending: false })
       .then(({ data }) => { setTemplates(data || []); setLoading(false); });
   }, []);
@@ -98,6 +99,7 @@ export default function ChecklistsPage() {
                   <span className="material-symbols-outlined">{tmpl.icon}</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {tmpl.status === "draft" && <Badge variant="warning">Rascunho</Badge>}
                   <Badge variant="info">v{tmpl.version}</Badge>
                   <div className="relative">
                     <button onClick={() => setMenuOpen(menuOpen === tmpl.id ? null : tmpl.id)} className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">

@@ -14,6 +14,7 @@ const navItems = [
   { icon: "analytics", label: "Relatórios", href: "/relatorios" },
   { icon: "history", label: "Histórico", href: "/historico" },
   { icon: "notifications", label: "Alertas", href: "/configuracoes/alertas" },
+  { icon: "settings", label: "Configurações", href: "/configuracoes" },
 ];
 
 export function SideNavBar() {
