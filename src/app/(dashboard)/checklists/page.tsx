@@ -29,6 +29,7 @@ export default function ChecklistsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showModels, setShowModels] = useState(false);
   const [copying, setCopying] = useState<number | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const { user } = useAuth();
 
   const copyModel = async (index: number) => {
@@ -169,6 +170,59 @@ export default function ChecklistsPage() {
         </Link>
       </div>
 
+      {/* Model preview modal */}
+      {previewIndex !== null && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPreviewIndex(null)}>
+          <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColors[modelTemplates[previewIndex].icon] || "bg-primary/5 text-primary"}`}>
+                  <span className="material-symbols-outlined text-[20px]">{modelTemplates[previewIndex].icon}</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-navy">{modelTemplates[previewIndex].name}</h3>
+                  <p className="text-xs text-on-surface-variant">{modelTemplates[previewIndex].description}</p>
+                </div>
+              </div>
+              <button onClick={() => setPreviewIndex(null)} className="p-2 hover:bg-surface-container-low rounded-lg cursor-pointer">
+                <span className="material-symbols-outlined text-on-surface-variant">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              {modelTemplates[previewIndex].sections.map((sec, sIdx) => (
+                <div key={sIdx}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-primary">{sIdx + 1}</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-navy">{sec.name}</h4>
+                    <span className="text-[10px] text-outline">{sec.items.length} itens</span>
+                  </div>
+                  <div className="space-y-1.5 ml-8">
+                    {sec.items.map((item, iIdx) => (
+                      <div key={iIdx} className="flex items-center gap-2 text-sm text-on-surface-variant">
+                        <span className="text-[10px] text-outline w-4">{iIdx + 1}.</span>
+                        <span>{item.question}</span>
+                        {item.required_evidence && (
+                          <span className="material-symbols-outlined text-amber-500 text-[14px]">photo_camera</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="sticky bottom-0 bg-surface-container-lowest border-t border-outline-variant/10 p-4 flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setPreviewIndex(null)}>Fechar</Button>
+              <Button variant="primary" className="flex-1" onClick={() => { copyModel(previewIndex); setPreviewIndex(null); }} disabled={copying === previewIndex}>
+                <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                Usar este modelo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Models library */}
       <div>
         <button onClick={() => setShowModels(!showModels)} className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer">
@@ -196,10 +250,16 @@ export default function ChecklistsPage() {
                     <span>{totalItems} itens</span>
                     <Badge variant="info">{model.category}</Badge>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => copyModel(i)} disabled={copying === i}>
-                    <span className="material-symbols-outlined text-[16px]">{copying === i ? "progress_activity" : "content_copy"}</span>
-                    {copying === i ? "Copiando..." : "Usar este modelo"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setPreviewIndex(i)}>
+                      <span className="material-symbols-outlined text-[16px]">visibility</span>
+                      Ver
+                    </Button>
+                    <Button variant="primary" size="sm" className="flex-1" onClick={() => copyModel(i)} disabled={copying === i}>
+                      <span className="material-symbols-outlined text-[16px]">{copying === i ? "progress_activity" : "content_copy"}</span>
+                      Usar
+                    </Button>
+                  </div>
                 </Card>
               );
             })}

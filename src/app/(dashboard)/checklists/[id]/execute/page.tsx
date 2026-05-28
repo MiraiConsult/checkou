@@ -83,7 +83,11 @@ export default function ExecuteChecklistPage() {
     }
   };
 
+  const missingPhotos = questions.filter((q) => q.required_evidence && answers[q.id] && !photos[q.id]);
+  const canSubmit = totalAnswered === questions.length && missingPhotos.length === 0;
+
   const handleSubmit = async () => {
+    if (!canSubmit) return;
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -171,10 +175,17 @@ export default function ExecuteChecklistPage() {
               <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Itens respondidos</p>
               <p className="text-3xl font-black mt-2">{totalAnswered}/{questions.length}</p>
             </div>
-            <Button variant="primary" className="w-full mt-4" onClick={handleSubmit}>
+            <Button variant="primary" className="w-full mt-4" onClick={handleSubmit} disabled={!canSubmit}>
               Finalizar e Enviar
               <span className="material-symbols-outlined text-[18px]">send</span>
             </Button>
+            {!canSubmit && totalAnswered > 0 && (
+              <p className="text-[10px] text-white/50 mt-2 text-center">
+                {totalAnswered < questions.length
+                  ? `Responda todos os ${questions.length} itens`
+                  : `${missingPhotos.length} foto(s) obrigatória(s) pendente(s)`}
+              </p>
+            )}
           </div>
         </div>
 
@@ -206,7 +217,15 @@ export default function ExecuteChecklistPage() {
                       )}
                     >
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-on-surface">{item.question}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-on-surface">{item.question}</p>
+                          {item.required_evidence && (
+                            <span className={cn("inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full", photos[item.id] ? "bg-tertiary-fixed/20 text-tertiary" : "bg-amber-100 text-amber-700")}>
+                              <span className="material-symbols-outlined text-[12px]">photo_camera</span>
+                              {photos[item.id] ? "OK" : "Obrigatória"}
+                            </span>
+                          )}
+                        </div>
                         {observations[item.id] && (
                           <p className="text-xs italic text-error mt-2 border-l-2 border-error pl-2">{observations[item.id]}</p>
                         )}
