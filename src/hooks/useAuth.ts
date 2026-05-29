@@ -9,6 +9,7 @@ interface UserProfile {
   email: string;
   avatar_url: string | null;
   organization_id: string;
+  sector: string;
 }
 
 interface AuthState {
@@ -34,7 +35,7 @@ export const useAuth = create<AuthState>((set) => ({
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, full_name, role, email, avatar_url, organization_id")
+      .select("id, full_name, role, email, avatar_url, organization_id, sector")
       .eq("id", authUser.id)
       .single();
 
@@ -47,6 +48,7 @@ export const useAuth = create<AuthState>((set) => ({
           email: profile.email,
           avatar_url: profile.avatar_url,
           organization_id: profile.organization_id,
+          sector: profile.sector || "geral",
         },
         loading: false,
       });

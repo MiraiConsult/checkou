@@ -8,6 +8,7 @@ import { Toggle } from "@/components/ui/Toggle";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logActivity } from "@/lib/utils/activity";
 
 const iconOptions = [
   "restaurant", "cleaning_services", "security", "thermostat", "inventory_2",
@@ -61,6 +62,8 @@ function NovoChecklistContent() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [frequency, setFrequency] = useState("daily");
   const [deadlineTime, setDeadlineTime] = useState("");
+  const [sector, setSector] = useState("geral");
+  const [requiresApproval, setRequiresApproval] = useState(false);
   const [sections, setSections] = useState<Section[]>([
     { id: generateId(), name: "", items: [{ id: generateId(), question: "", required_evidence: false }] },
   ]);
@@ -80,6 +83,8 @@ function NovoChecklistContent() {
           setIcon(data.icon);
           if (data.frequency) setFrequency(data.frequency);
           if (data.deadline_time) setDeadlineTime(data.deadline_time.slice(0, 5));
+          if (data.sector) setSector(data.sector);
+          if (typeof data.requires_approval === "boolean") setRequiresApproval(data.requires_approval);
           const secs = Array.isArray(data.sections) ? data.sections : [];
           if (secs.length > 0) {
             setSections(secs.map((s: { name: string; items: SectionItem[] }) => ({
@@ -107,6 +112,8 @@ function NovoChecklistContent() {
       icon: ic,
       frequency,
       deadline_time: deadlineTime || null,
+      sector,
+      requires_approval: requiresApproval,
       sections: secs.map((s) => ({ name: s.name, items: s.items })),
       organization_id: user.organization_id,
       status: "draft" as const,
@@ -120,7 +127,7 @@ function NovoChecklistContent() {
     }
     setSaving(false);
     setLastSaved(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
-  }, [dbId, user?.organization_id]);
+  }, [dbId, user?.organization_id, frequency, deadlineTime, sector, requiresApproval]);
 
   // Trigger auto-save on changes (debounced)
   useEffect(() => {
@@ -128,7 +135,7 @@ function NovoChecklistContent() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => autoSave(name, description, icon, sections), 2000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [name, description, icon, sections, frequency, deadlineTime, autoSave]);
+  }, [name, description, icon, sections, frequency, deadlineTime, sector, requiresApproval, autoSave]);
 
   const isEditing = !!editId;
 
@@ -186,6 +193,8 @@ function NovoChecklistContent() {
     const payload = {
       name, description, icon, frequency,
       deadline_time: deadlineTime || null,
+      sector,
+      requires_approval: requiresApproval,
       sections: cleanSections,
       organization_id: user.organization_id,
       status: "published" as const,
@@ -195,6 +204,15 @@ function NovoChecklistContent() {
     } else {
       await supabase.from("checklist_templates").insert(payload);
     }
+    await logActivity({
+      organizationId: user.organization_id,
+      userId: user.id,
+      userName: user.name,
+      action: dbId ? "template_published" : "template_created",
+      entityType: "checklist_template",
+      entityId: dbId || undefined,
+      description: `${dbId ? "editou e publicou" : "criou"} o template "${name}"`,
+    });
     router.push("/checklists");
   };
 
@@ -269,6 +287,22 @@ function NovoChecklistContent() {
               <div>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Prazo para responder</label>
                 <input type="time" value={deadlineTime} onChange={(e) => setDeadlineTime(e.target.value)} className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Setor responsável</label>
+                <select value={sector} onChange={(e) => setSector(e.target.value)} className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
+                  <option value="geral">Geral (todos)</option>
+                  <option value="gerencia">Gerência</option>
+                  <option value="cozinha">Cozinha</option>
+                  <option value="salao">Salão</option>
+                  <option value="bar">Bar</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-3 cursor-pointer bg-surface-container-low rounded-xl px-4 py-3 w-full border border-outline-variant/10">
+                  <Toggle checked={requiresApproval} onChange={setRequiresApproval} />
+                  <span className="text-sm font-medium text-on-surface">Exige aprovação do gestor</span>
+                </label>
               </div>
             </div>
             </div>

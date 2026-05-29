@@ -9,6 +9,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logActivity } from "@/lib/utils/activity";
 
 interface QuestionItem {
   id: string;
@@ -21,6 +22,7 @@ interface TemplateData {
   id: string;
   name: string;
   sections: { name: string; items: { id: string; question: string; required_evidence: boolean }[] }[];
+  requires_approval?: boolean;
 }
 
 export default function ExecuteChecklistPage() {
@@ -49,7 +51,7 @@ export default function ExecuteChecklistPage() {
   // Load template from Supabase
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_templates").select("id, name, sections").eq("id", templateId).single()
+    supabase.from("checklist_templates").select("id, name, sections, requires_approval").eq("id", templateId).single()
       .then(({ data }) => {
         if (!data) { router.push("/checklists"); return; }
         setTemplate(data as TemplateData);
@@ -133,19 +135,45 @@ export default function ExecuteChecklistPage() {
       evidence_url: photos[itemId] || null,
     }));
 
+    // Capture geolocation (best effort)
+    let geolocation: { lat: number; lng: number } | null = null;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+      });
+      geolocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    } catch { /* geolocation optional */ }
+
     // Get first unit for this org (or null)
     const { data: units } = await supabase.from("units").select("id").limit(1);
     const unitId = units?.[0]?.id || null;
+
+    // If template requires approval, goes to pending queue; else auto-approved
+    const status = template?.requires_approval ? "completed" : "approved";
 
     await supabase.from("checklist_executions").insert({
       template_id: templateId,
       unit_id: unitId,
       operator_id: authUser.id,
-      status: "completed",
+      status,
       score,
       responses,
+      geolocation,
       completed_at: new Date().toISOString(),
+      ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
     });
+
+    // Log activity
+    if (user?.organization_id) {
+      await logActivity({
+        organizationId: user.organization_id,
+        userId: authUser.id,
+        userName: user.name,
+        action: "execution_completed",
+        entityType: "checklist_execution",
+        description: `respondeu o checklist "${template?.name}" (score ${score}%)`,
+      });
+    }
 
     setShowPasswordModal(false);
     setSubmitted(true);

@@ -32,7 +32,25 @@ const tabs = [
   { id: "empresa", label: "Empresa", icon: "domain" },
   { id: "unidades", label: "Unidades / Restaurantes", icon: "storefront" },
   { id: "usuarios", label: "Usuários", icon: "group" },
+  { id: "historico", label: "Histórico de Edições", icon: "history" },
 ];
+
+interface ActivityLog {
+  id: string;
+  user_name: string;
+  action: string;
+  description: string;
+  created_at: string;
+}
+
+const actionIcon: Record<string, string> = {
+  execution_completed: "play_circle",
+  execution_approved: "check_circle",
+  execution_rejected: "cancel",
+  template_created: "add_circle",
+  template_published: "publish",
+  user_created: "person_add",
+};
 
 interface UserProfile {
   id: string;
@@ -54,8 +72,17 @@ export default function ConfiguracoesPage() {
   const [showNewUnit, setShowNewUnit] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [showNewUser, setShowNewUser] = useState(false);
-  const [newUserData, setNewUserData] = useState({ email: "", full_name: "", password: "", role: "operator" });
+  const [newUserData, setNewUserData] = useState({ email: "", full_name: "", password: "", role: "operator", sector: "geral" });
   const [newUnit, setNewUnit] = useState({ name: "", location: "", phone: "", email: "", cuisine_type: "", operating_hours: "", manager_name: "", capacity: 0 });
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+
+  useEffect(() => {
+    if (activeTab !== "historico" || !user?.organization_id) return;
+    const supabase = createClient();
+    supabase.from("activity_logs").select("id, user_name, action, description, created_at")
+      .order("created_at", { ascending: false }).limit(100)
+      .then(({ data }) => setLogs(data || []));
+  }, [activeTab, user?.organization_id]);
 
   useEffect(() => {
     if (!user?.organization_id) return;
@@ -427,6 +454,16 @@ export default function ConfiguracoesPage() {
                         <option value="admin">Administrador</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1.5">Setor</label>
+                      <select value={newUserData.sector} onChange={(e) => setNewUserData({ ...newUserData, sector: e.target.value })} className={inputClass}>
+                        <option value="geral">Geral (todos)</option>
+                        <option value="gerencia">Gerência</option>
+                        <option value="cozinha">Cozinha</option>
+                        <option value="salao">Salão</option>
+                        <option value="bar">Bar</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-6">
                     <Button variant="outline" onClick={() => setShowNewUser(false)}>Cancelar</Button>
@@ -437,13 +474,13 @@ export default function ConfiguracoesPage() {
                       const { data, error } = await supabase.auth.signUp({
                         email: newUserData.email,
                         password: newUserData.password,
-                        options: { data: { full_name: newUserData.full_name, role: newUserData.role, organization_id: user.organization_id } },
+                        options: { data: { full_name: newUserData.full_name, role: newUserData.role, sector: newUserData.sector, organization_id: user.organization_id } },
                       });
                       if (error) { alert(error.message); setSaving(false); return; }
                       if (data.user) {
                         setUsers([...users, { id: data.user.id, full_name: newUserData.full_name, email: newUserData.email, role: newUserData.role, created_at: new Date().toISOString() }]);
                       }
-                      setNewUserData({ email: "", full_name: "", password: "", role: "operator" });
+                      setNewUserData({ email: "", full_name: "", password: "", role: "operator", sector: "geral" });
                       setShowNewUser(false);
                       setSaving(false);
                       setSaved(true);
@@ -478,6 +515,51 @@ export default function ConfiguracoesPage() {
                 })}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* HISTORICO DE EDICOES TAB */}
+      {activeTab === "historico" && (
+        <div className="space-y-3">
+          {user?.role !== "admin" && user?.role !== "master" ? (
+            <Card className="text-center py-16">
+              <span className="material-symbols-outlined text-outline text-[56px] mb-4">lock</span>
+              <h3 className="text-lg font-bold text-navy mb-2">Acesso restrito</h3>
+              <p className="text-sm text-on-surface-variant">Somente administradores podem ver o histórico de edições</p>
+            </Card>
+          ) : logs.length === 0 ? (
+            <Card className="text-center py-16">
+              <span className="material-symbols-outlined text-outline text-[56px] mb-4">history</span>
+              <h3 className="text-lg font-bold text-navy mb-2">Nenhuma atividade registrada</h3>
+              <p className="text-sm text-on-surface-variant">Toda ação no sistema (respostas, aprovações, edições) aparecerá aqui</p>
+            </Card>
+          ) : (
+            <Card>
+              <div className="space-y-1">
+                {logs.map((log) => {
+                  const initials = log.user_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+                  return (
+                    <div key={log.id} className="flex items-center gap-3 py-3 border-b border-outline-variant/5 last:border-0">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-primary text-[18px]">{actionIcon[log.action] || "edit"}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-on-surface">
+                          <span className="font-semibold text-navy">{log.user_name}</span> {log.description}
+                        </p>
+                      </div>
+                      <span className="text-xs text-outline whitespace-nowrap">
+                        {new Date(log.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[9px] font-bold text-primary">{initials}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
           )}
         </div>
       )}

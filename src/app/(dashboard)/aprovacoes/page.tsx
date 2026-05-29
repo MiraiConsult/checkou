@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logActivity } from "@/lib/utils/activity";
 import Link from "next/link";
 
 interface Execution {
@@ -94,8 +95,20 @@ export default function AprovacoesPage() {
     const supabase = createClient();
     await supabase.from("checklist_executions").update({
       status: action,
-      ...(action === "approved" ? { approved_at: new Date().toISOString() } : {}),
+      ...(action === "approved" ? { approved_at: new Date().toISOString(), approved_by: user?.id } : {}),
     }).eq("id", id);
+    const exec = executions.find((e) => e.id === id);
+    if (user?.organization_id) {
+      await logActivity({
+        organizationId: user.organization_id,
+        userId: user.id,
+        userName: user.name,
+        action: action === "approved" ? "execution_approved" : "execution_rejected",
+        entityType: "checklist_execution",
+        entityId: id,
+        description: `${action === "approved" ? "aprovou" : "rejeitou"} o checklist "${exec?.template_name}" de ${exec?.operator_name}`,
+      });
+    }
     setExecutions((prev) => prev.filter((e) => e.id !== id));
   };
 

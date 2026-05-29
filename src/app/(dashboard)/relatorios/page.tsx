@@ -33,6 +33,7 @@ const statusLabel: Record<string, { label: string; variant: "success" | "error" 
 export default function RelatoriosPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ templates: 0, executions: 0, avgScore: 0, approved: 0, rejected: 0 });
+  const [efficiency, setEfficiency] = useState({ expected: 0, executed: 0, late: 0, onTime: 0 });
   const [recentExecs, setRecentExecs] = useState<ExecSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
@@ -105,6 +106,63 @@ export default function RelatoriosPage() {
     } else {
       setRecentExecs([]);
     }
+
+    // ---- Execution efficiency for the selected period ----
+    // Published daily templates for this org define what SHOULD run each day.
+    const { data: dailyTemplates } = await supabase
+      .from("checklist_templates")
+      .select("id, deadline_time")
+      .eq("status", "published")
+      .eq("frequency", "daily")
+      .eq("organization_id", user.organization_id);
+    const dailyTpls = dailyTemplates || [];
+    const dailyIds = dailyTpls.map((t) => t.id);
+    const deadlineMap = new Map(dailyTpls.map((t) => [t.id, t.deadline_time as string | null]));
+
+    // Resolve the effective date window (defaults to current month when unset).
+    const now = new Date();
+    const periodStart = startDate
+      ? new Date(startDate + "T00:00:00")
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd = endDate
+      ? new Date(endDate + "T23:59:59")
+      : now;
+    // Number of calendar days in the window (inclusive).
+    const dayMs = 24 * 60 * 60 * 1000;
+    const startDay = new Date(periodStart.getFullYear(), periodStart.getMonth(), periodStart.getDate());
+    const endDay = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), periodEnd.getDate());
+    const numDays = Math.max(1, Math.floor((endDay.getTime() - startDay.getTime()) / dayMs) + 1);
+
+    const expected = dailyIds.length * numDays;
+
+    let executed = 0;
+    let late = 0;
+    if (dailyIds.length > 0) {
+      let effQuery = supabase
+        .from("checklist_executions")
+        .select("id, started_at, template_id")
+        .in("template_id", dailyIds)
+        .gte("started_at", periodStart.toISOString())
+        .lte("started_at", periodEnd.toISOString());
+      if (user.role === "operator") {
+        effQuery = effQuery.eq("operator_id", user.id);
+      } else if (selectedUserId) {
+        effQuery = effQuery.eq("operator_id", selectedUserId);
+      }
+      const { data: effData } = await effQuery;
+      const effExecs = effData || [];
+      executed = effExecs.length;
+      for (const e of effExecs) {
+        const deadline = deadlineMap.get(e.template_id);
+        if (!deadline) continue;
+        const started = new Date(e.started_at);
+        const [dh, dm] = deadline.split(":").map(Number);
+        const startMinutes = started.getHours() * 60 + started.getMinutes();
+        const deadlineMinutes = dh * 60 + (dm || 0);
+        if (startMinutes > deadlineMinutes) late += 1;
+      }
+    }
+    setEfficiency({ expected, executed, late, onTime: executed - late });
 
     setLoading(false);
   }, [user, startDate, endDate, selectedUserId]);
@@ -194,6 +252,63 @@ export default function RelatoriosPage() {
           <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">Reprovados</p>
         </Card>
       </div>
+
+      {/* Execution efficiency */}
+      {(() => {
+        const rate = efficiency.expected > 0 ? Math.round((efficiency.executed / efficiency.expected) * 100) : 0;
+        const onTimeRate = efficiency.executed > 0 ? Math.round((efficiency.onTime / efficiency.executed) * 100) : 0;
+        return (
+          <div>
+            <h3 className="text-lg font-bold text-navy mb-4">Eficiência de Execução</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Execution rate */}
+              <Card>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Taxa de Execução</p>
+                <p className={`text-4xl font-black mt-2 ${rate >= 80 ? "text-tertiary" : "text-error"}`}>{rate}%</p>
+                <p className="text-xs text-on-surface-variant mt-2">
+                  Dos checklists previstos, <span className="font-bold text-navy">{rate}%</span> foram executados
+                </p>
+                <p className="text-[11px] text-outline mt-1">
+                  {efficiency.executed} de {efficiency.expected} previstos
+                </p>
+              </Card>
+
+              {/* Previstos vs executados */}
+              <Card>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Previstos vs Executados</p>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-4xl font-black text-navy">{efficiency.executed}</span>
+                  <span className="text-lg font-bold text-on-surface-variant">/ {efficiency.expected}</span>
+                </div>
+                <p className="text-xs text-on-surface-variant mt-2">
+                  Diários publicados no período selecionado
+                </p>
+                {efficiency.expected - efficiency.executed > 0 && (
+                  <p className="text-[11px] text-error mt-1 font-semibold">
+                    {efficiency.expected - efficiency.executed} não executados
+                  </p>
+                )}
+              </Card>
+
+              {/* On time vs late */}
+              <Card>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Pontualidade</p>
+                <div className="flex items-baseline gap-3 mt-2">
+                  <span className="text-4xl font-black text-tertiary">{efficiency.onTime}</span>
+                  <span className="text-sm font-bold text-on-surface-variant">no prazo</span>
+                </div>
+                <p className="text-xs text-on-surface-variant mt-2">
+                  <span className="font-bold text-error">{efficiency.late}</span> em atraso
+                  {efficiency.executed > 0 && (
+                    <> · <span className="font-bold text-navy">{onTimeRate}%</span> dentro do prazo</>
+                  )}
+                </p>
+                <p className="text-[11px] text-outline mt-1">Atraso = iniciado após o horário-limite do template</p>
+              </Card>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Recent executions table */}
       <Card>

@@ -19,6 +19,7 @@ interface Template {
   description: string;
   sections: { name: string; items: unknown[] }[];
   status: string;
+  sector?: string;
 }
 
 export default function ChecklistsPage() {
@@ -53,11 +54,21 @@ export default function ChecklistsPage() {
   };
 
   useEffect(() => {
+    if (!user) return;
     const supabase = createClient();
     const fetchAll = async () => {
-      const { data } = await supabase.from("checklist_templates")
-        .select("id, icon, name, version, description, sections, status")
+      let query = supabase.from("checklist_templates")
+        .select("id, icon, name, version, description, sections, status, sector")
         .order("created_at", { ascending: false });
+
+      // Operators only see published checklists for their sector (or general)
+      if (user.role === "operator") {
+        query = query.eq("status", "published");
+        if (user.sector && user.sector !== "geral") {
+          query = query.in("sector", ["geral", user.sector]);
+        }
+      }
+      const { data } = await query;
       setTemplates(data || []);
 
       // Fetch execution counts per template
@@ -70,7 +81,7 @@ export default function ChecklistsPage() {
       setLoading(false);
     };
     fetchAll();
-  }, []);
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     const supabase = createClient();
