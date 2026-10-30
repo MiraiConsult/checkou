@@ -119,3 +119,10 @@ body {
   color: #191c1d;
   font-family: "Inter", sans-serif;
 }
+
+@media print {
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

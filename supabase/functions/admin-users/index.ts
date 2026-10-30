@@ -20,16 +20,17 @@ Deno.serve(async (req: Request) => {
   try {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
-    // Só a equipe Checkou: admin ou master ativo, sem empresa vinculada
+    // Equipe Checkou gerencia todas as empresas; admin de empresa, só a própria
     const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userData?.user) return json({ error: "Não autenticado" }, 401);
     const { data: caller } = await admin.from("profiles")
       .select("id, full_name, role, organization_id, unit_id, active")
       .eq("id", userData.user.id).single();
-    if (!caller?.active || caller.unit_id || !["admin", "master"].includes(caller.role)) {
+    if (!caller?.active || !["admin", "master"].includes(caller.role)) {
       return json({ error: "Acesso negado" }, 403);
     }
+    const ownUnit: string | null = caller.unit_id;
 
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? "");
@@ -45,10 +46,20 @@ Deno.serve(async (req: Request) => {
       return !!data;
     };
 
+    const parseChecklists = async (raw: unknown, unitId: string | null) => {
+      const ids = Array.isArray(raw) ? raw.map(String) : [];
+      if (!unitId || ids.length === 0) return [];
+      const { data } = await admin.from("checklist_templates").select("id")
+        .in("id", ids).eq("organization_id", caller.organization_id).contains("unit_ids", [unitId]);
+      return (data ?? []).map((t) => t.id);
+    };
+
     if (action === "list") {
-      const { data: profiles, error } = await admin.from("profiles")
-        .select("id, full_name, email, role, sector, unit_id, active, created_at")
+      let query = admin.from("profiles")
+        .select("id, full_name, email, role, sector, unit_id, active, checklist_ids, created_at")
         .eq("organization_id", caller.organization_id).order("full_name");
+      if (ownUnit) query = query.eq("unit_id", ownUnit);
+      const { data: profiles, error } = await query;
       if (error) return json({ error: error.message }, 400);
       const lastSignIn: Record<string, string | null> = {};
       await Promise.all((profiles ?? []).map(async (p) => {
@@ -64,19 +75,26 @@ Deno.serve(async (req: Request) => {
       const password = String(body.password ?? "");
       const role = String(body.role ?? "operator");
       const sector = String(body.sector ?? "geral");
-      const unitId = body.unit_id ? String(body.unit_id) : null;
+      const unitId = ownUnit ?? (body.unit_id ? String(body.unit_id) : null);
       if (!email || !fullName) return json({ error: "Informe nome e email." }, 400);
       if (password.length < 6) return json({ error: "A senha precisa ter ao menos 6 caracteres." }, 400);
       if (!ROLES.includes(role) || !SECTORS.includes(sector)) return json({ error: "Função ou setor inválido." }, 400);
-      if (role === "master" && caller.role !== "master") return json({ error: "Só um Master pode criar outro Master." }, 403);
+      if (role === "master" && (ownUnit || caller.role !== "master")) return json({ error: "Só um Master pode criar outro Master." }, 403);
       if (!(await validUnit(unitId))) return json({ error: "Empresa inválida." }, 400);
+
+      // O trigger handle_new_user consome este convite ao criar o perfil
+      const { error: pendingError } = await admin.from("pending_users").upsert({
+        email, organization_id: caller.organization_id, full_name: fullName, role, sector, unit_id: unitId,
+        checklist_ids: await parseChecklists(body.checklist_ids, unitId),
+      });
+      if (pendingError) return json({ error: pendingError.message }, 400);
 
       const { data, error } = await admin.auth.admin.createUser({
         email, password, email_confirm: true,
         user_metadata: { full_name: fullName },
-        app_metadata: { organization_id: caller.organization_id, role, sector, unit_id: unitId },
       });
       if (error || !data?.user) {
+        await admin.from("pending_users").delete().eq("email", email);
         const taken = /already|registered|exists/i.test(error?.message ?? "");
         return json({ error: taken ? "Já existe um usuário com este email." : error?.message ?? "Falha ao criar usuário." }, 400);
       }
@@ -87,8 +105,8 @@ Deno.serve(async (req: Request) => {
     // As ações abaixo agem sobre um usuário existente da mesma organização
     const userId = String(body.user_id ?? "");
     const { data: target } = await admin.from("profiles")
-      .select("id, full_name, email, role, organization_id").eq("id", userId).maybeSingle();
-    if (!target || target.organization_id !== caller.organization_id) return json({ error: "Usuário não encontrado." }, 404);
+      .select("id, full_name, email, role, organization_id, unit_id").eq("id", userId).maybeSingle();
+    if (!target || target.organization_id !== caller.organization_id || (ownUnit && target.unit_id !== ownUnit)) return json({ error: "Usuário não encontrado." }, 404);
     if (target.role === "master" && caller.role !== "master") return json({ error: "Só um Master pode alterar outro Master." }, 403);
 
     if (action === "update") {
@@ -96,19 +114,21 @@ Deno.serve(async (req: Request) => {
       const email = String(body.email ?? "").trim().toLowerCase();
       const role = String(body.role ?? "");
       const sector = String(body.sector ?? "");
-      const unitId = body.unit_id ? String(body.unit_id) : null;
+      const unitId = ownUnit ?? (body.unit_id ? String(body.unit_id) : null);
       if (!fullName || !email) return json({ error: "Informe nome e email." }, 400);
       if (!ROLES.includes(role) || !SECTORS.includes(sector)) return json({ error: "Função ou setor inválido." }, 400);
-      if (role === "master" && caller.role !== "master") return json({ error: "Só um Master pode promover a Master." }, 403);
+      if (role === "master" && (ownUnit || caller.role !== "master")) return json({ error: "Só um Master pode promover a Master." }, 403);
       if (!(await validUnit(unitId))) return json({ error: "Empresa inválida." }, 400);
-      if (target.id === caller.id && (role !== caller.role || unitId)) {
+      if (target.id === caller.id && (role !== caller.role || unitId !== ownUnit)) {
         return json({ error: "Você não pode mudar a própria função nem se vincular a uma empresa." }, 400);
       }
       if (email !== target.email) {
         const { error } = await admin.auth.admin.updateUserById(target.id, { email, email_confirm: true });
         if (error) return json({ error: "Não foi possível trocar o email. Ele pode já estar em uso." }, 400);
       }
-      const { error } = await admin.from("profiles").update({ full_name: fullName, email, role, sector, unit_id: unitId }).eq("id", target.id);
+      const { error } = await admin.from("profiles").update({
+        full_name: fullName, email, role, sector, unit_id: unitId, checklist_ids: await parseChecklists(body.checklist_ids, unitId),
+      }).eq("id", target.id);
       if (error) return json({ error: error.message }, 400);
       await log("user_updated", target.id, `editou o usuário ${fullName}`);
       return json({ ok: true });

@@ -18,6 +18,11 @@ export function isStaff(user: UserProfile | null) {
   return !!user && !user.unit_id && (user.role === "admin" || user.role === "master");
 }
 
+// Administrador de um cliente gerencia os usuários só da própria empresa
+export function canManageUsers(user: UserProfile | null) {
+  return !!user && (user.role === "admin" || user.role === "master");
+}
+
 interface AuthState {
   user: UserProfile | null;
   loading: boolean;

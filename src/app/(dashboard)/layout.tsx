@@ -13,7 +13,7 @@ export default function DashboardLayout({
       <TopNavBar />
 
       {/* Main content */}
-      <main className="md:ml-64 pt-4 md:pt-20 pb-24 md:pb-8 px-4 md:px-8">
+      <main className="md:ml-64 print:ml-0 pt-4 md:pt-20 pb-24 md:pb-8 px-4 md:px-8 print:p-0">
         {children}
       </main>
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
-import { useAuth, isStaff } from "@/hooks/useAuth";
+import { useAuth, isStaff, canManageUsers } from "@/hooks/useAuth";
 
 const navItems = [
   { icon: "dashboard", label: "Dashboard", href: "/" },
@@ -11,16 +11,16 @@ const navItems = [
   { icon: "assignment_turned_in", label: "Aprovações", href: "/aprovacoes" },
   { icon: "history", label: "Histórico", href: "/historico" },
   { icon: "settings", label: "Config", href: "/configuracoes", staffOnly: true },
-  { icon: "admin_panel_settings", label: "Admin", href: "/admin", staffOnly: true },
+  { icon: "admin_panel_settings", label: "Admin", href: "/admin", adminOnly: true },
 ];
 
 export function BottomNavBar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const items = navItems.filter((item) => !item.staffOnly || isStaff(user));
+  const items = navItems.filter((item) => item.adminOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-40 px-2 py-2">
+    <nav className="md:hidden print:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-40 px-2 py-2">
       <div className="flex items-center justify-around">
         {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));

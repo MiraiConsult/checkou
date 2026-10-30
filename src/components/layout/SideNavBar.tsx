@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
-import { useAuth, isStaff } from "@/hooks/useAuth";
+import { useAuth, isStaff, canManageUsers } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
@@ -15,7 +15,7 @@ const navItems = [
   { icon: "history", label: "Histórico", href: "/historico" },
   { icon: "notifications", label: "Alertas", href: "/configuracoes/alertas", staffOnly: true },
   { icon: "settings", label: "Configurações", href: "/configuracoes", staffOnly: true },
-  { icon: "admin_panel_settings", label: "Admin", href: "/admin", staffOnly: true },
+  { icon: "admin_panel_settings", label: "Admin", href: "/admin", adminOnly: true },
 ];
 
 export function SideNavBar() {
@@ -41,11 +41,11 @@ export function SideNavBar() {
   }, []);
 
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
-  const items = navItems.filter((item) => !item.staffOnly || isStaff(user));
+  const items = navItems.filter((item) => item.adminOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
   const roleLabel = user?.role === "master" ? "Master" : user?.role === "admin" ? "Admin de Grupo" : "Operador";
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-navy fixed top-0 left-0 h-full z-40">
+    <aside className="hidden md:flex print:hidden flex-col w-64 bg-navy fixed top-0 left-0 h-full z-40">
       {/* Logo */}
       <div className="px-6 py-6">
         <Link href="/" className="flex items-center gap-3">

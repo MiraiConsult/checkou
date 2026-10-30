@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth, isStaff } from "@/hooks/useAuth";
+import { useAuth, isStaff, canManageUsers } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils/cn";
 
 interface AdminUser {
@@ -18,6 +18,7 @@ interface AdminUser {
   sector: string;
   unit_id: string | null;
   active: boolean;
+  checklist_ids: string[];
   created_at: string;
   last_sign_in_at: string | null;
 }
@@ -36,7 +37,7 @@ interface Template {
 
 const roleLabels: Record<string, string> = { master: "Master", admin: "Administrador", operator: "Operador" };
 const sectorLabels: Record<string, string> = { geral: "Geral (todos)", gerencia: "Gerência", cozinha: "Cozinha", salao: "Salão", bar: "Bar" };
-const emptyForm = { full_name: "", email: "", password: "", role: "operator", sector: "geral", unit_id: "" };
+const emptyForm = { full_name: "", email: "", password: "", role: "operator", sector: "geral", unit_id: "", checklist_ids: [] as string[] };
 
 const tabs = [
   { id: "usuarios", label: "Usuários", icon: "group" },
@@ -87,10 +88,11 @@ export default function AdminPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
 
   const staff = isStaff(user);
+  const manager = canManageUsers(user);
 
   useEffect(() => {
-    if (user && !staff) router.push("/");
-  }, [user, staff, router]);
+    if (user && !manager) router.push("/");
+  }, [user, manager, router]);
 
   const load = useCallback(() => {
     fetchAdminData().then(({ usersRes, unitsRes, templatesRes }) => {
@@ -103,7 +105,7 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!staff) return;
+    if (!manager) return;
     fetchAdminData().then(({ usersRes, unitsRes, templatesRes }) => {
       if (usersRes.error) setError(usersRes.error);
       setUsers(usersRes.data?.users || []);
@@ -111,18 +113,18 @@ export default function AdminPage() {
       setTemplates(templatesRes.data || []);
       setLoading(false);
     });
-  }, [staff]);
+  }, [manager]);
 
   const unitName = (id: string | null) => id ? units.find((u) => u.id === id)?.name || "Empresa" : "Equipe Checkou";
 
-  const openNew = () => {
-    setForm({ ...emptyForm, password: generatePassword(), unit_id: unitFilter !== "todas" ? unitFilter : "" });
+  const openNew = (unitId = user?.unit_id || (unitFilter !== "todas" ? unitFilter : "")) => {
+    setForm({ ...emptyForm, password: generatePassword(), unit_id: unitId });
     setError("");
     setEditing("new");
   };
 
   const openEdit = (target: AdminUser) => {
-    setForm({ full_name: target.full_name, email: target.email, password: "", role: target.role, sector: target.sector, unit_id: target.unit_id || "" });
+    setForm({ full_name: target.full_name, email: target.email, password: "", role: target.role, sector: target.sector, unit_id: target.unit_id || "equipe", checklist_ids: target.checklist_ids || [] });
     setError("");
     setEditing(target);
   };
@@ -131,7 +133,7 @@ export default function AdminPage() {
     setSaving(true);
     setError("");
     const isNew = editing === "new";
-    const payload = { full_name: form.full_name, email: form.email, role: form.role, sector: form.sector, unit_id: form.unit_id || null };
+    const payload = { full_name: form.full_name, email: form.email, role: form.role, sector: form.sector, unit_id: form.unit_id === "equipe" ? null : form.unit_id, checklist_ids: form.checklist_ids };
     const result = isNew
       ? await callAdmin({ action: "create", ...payload, password: form.password })
       : await callAdmin({ action: "update", user_id: (editing as AdminUser).id, ...payload });
@@ -197,7 +199,31 @@ export default function AdminPage() {
     return matchesSearch && matchesUnit;
   });
 
-  if (loading || !staff) {
+  const userActions = (target: AdminUser) => (
+    <>
+      <button onClick={() => openEdit(target)} aria-label="Editar" className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+        <span className="material-symbols-outlined text-on-surface-variant text-[18px]">edit</span>
+      </button>
+      {target.id !== user?.id && (
+        <>
+          <button onClick={() => toggleActive(target)} aria-label={target.active ? "Desativar" : "Reativar"} title={target.active ? "Desativar" : "Reativar"} className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+            <span className="material-symbols-outlined text-on-surface-variant text-[18px]">{target.active ? "block" : "check_circle"}</span>
+          </button>
+          <button onClick={() => setDeleteTarget(target)} aria-label="Excluir" className="p-2 hover:bg-error/5 rounded-lg transition-colors cursor-pointer">
+            <span className="material-symbols-outlined text-outline hover:text-error text-[18px]">delete</span>
+          </button>
+        </>
+      )}
+    </>
+  );
+
+  const unitTemplates = templates.filter((t) => t.status === "published" && t.unit_ids.includes(form.unit_id));
+
+  const toggleFormChecklist = (id: string) => {
+    setForm({ ...form, checklist_ids: form.checklist_ids.includes(id) ? form.checklist_ids.filter((c) => c !== id) : [...form.checklist_ids, id] });
+  };
+
+  if (loading || !manager) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <span className="material-symbols-outlined text-primary text-[40px] animate-spin">progress_activity</span>
@@ -210,7 +236,7 @@ export default function AdminPage() {
       <div>
         <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Administração</p>
         <h2 className="text-3xl font-extrabold text-navy tracking-tight">Admin</h2>
-        <p className="text-sm text-on-surface-variant mt-1">Crie os acessos dos clientes e defina o que cada empresa recebe</p>
+        <p className="text-sm text-on-surface-variant mt-1">{staff ? "Crie os acessos dos clientes e defina o que cada empresa recebe" : "Crie os acessos da sua equipe e defina os checklists de cada pessoa"}</p>
       </div>
 
       {error && (
@@ -220,7 +246,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="flex gap-2 border-b border-outline-variant/10">
+      {staff && <div className="flex gap-2 border-b border-outline-variant/10">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -234,18 +260,20 @@ export default function AdminPage() {
             {tab.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {activeTab === "usuarios" && (
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome ou email" className={cn(inputClass, "flex-1")} />
-            <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} className={cn(inputClass, "md:w-56")}>
-              <option value="todas">Todas as empresas</option>
-              <option value="equipe">Equipe Checkou</option>
-              {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
-            </select>
-            <Button variant="primary" onClick={openNew}>
+            {staff && (
+              <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} className={cn(inputClass, "md:w-56")}>
+                <option value="todas">Todas as empresas</option>
+                <option value="equipe">Equipe Checkou</option>
+                {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+              </select>
+            )}
+            <Button variant="primary" onClick={() => openNew()}>
               <span className="material-symbols-outlined text-[18px]">person_add</span>
               Criar Usuário
             </Button>
@@ -273,19 +301,7 @@ export default function AdminPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {!u.active && <Badge variant="error">Desativado</Badge>}
                   <Badge variant={u.role === "operator" ? "pending" : "info"}>{roleLabels[u.role] || u.role}</Badge>
-                  <button onClick={() => openEdit(u)} aria-label="Editar" className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">edit</span>
-                  </button>
-                  {u.id !== user?.id && (
-                    <>
-                      <button onClick={() => toggleActive(u)} aria-label={u.active ? "Desativar" : "Reativar"} title={u.active ? "Desativar" : "Reativar"} className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined text-on-surface-variant text-[18px]">{u.active ? "block" : "check_circle"}</span>
-                      </button>
-                      <button onClick={() => setDeleteTarget(u)} aria-label="Excluir" className="p-2 hover:bg-error/5 rounded-lg transition-colors cursor-pointer">
-                        <span className="material-symbols-outlined text-outline hover:text-error text-[18px]">delete</span>
-                      </button>
-                    </>
-                  )}
+                  {userActions(u)}
                 </div>
               </div>
             </Card>
@@ -314,6 +330,30 @@ export default function AdminPage() {
                   <h3 className="text-base font-bold text-navy">{unit.name}</h3>
                   <span className="text-xs text-on-surface-variant">{members.length} {members.length === 1 ? "usuário" : "usuários"}</span>
                 </div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Usuários desta empresa</p>
+                  <button onClick={() => openNew(unit.id)} className="flex items-center gap-1 text-xs font-bold text-primary cursor-pointer">
+                    <span className="material-symbols-outlined text-[16px]">person_add</span>
+                    Adicionar
+                  </button>
+                </div>
+                {members.length === 0 ? (
+                  <p className="text-sm text-on-surface-variant mb-5">Nenhum usuário ainda</p>
+                ) : (
+                  <div className="divide-y divide-outline-variant/10 mb-5">
+                    {members.map((u) => (
+                      <div key={u.id} className={cn("flex items-center gap-2 py-2", !u.active && "opacity-60")}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-navy truncate">{u.full_name}</p>
+                          <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
+                        </div>
+                        {!u.active && <Badge variant="error">Desativado</Badge>}
+                        <Badge variant={u.role === "operator" ? "pending" : "info"}>{roleLabels[u.role] || u.role}</Badge>
+                        {userActions(u)}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Checklists desta empresa</p>
                 <div className="flex flex-wrap gap-2">
                   {templates.map((template) => {
@@ -339,13 +379,16 @@ export default function AdminPage() {
             <h3 className="text-lg font-bold text-navy mb-5">{editing === "new" ? "Criar Usuário" : "Editar Usuário"}</h3>
             {error && <p className="text-sm text-error font-medium mb-4">{error}</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className={labelClass}>Empresa</label>
-                <select value={form.unit_id} onChange={(e) => setForm({ ...form, unit_id: e.target.value })} className={inputClass}>
-                  <option value="">Equipe Checkou (vê todas as empresas)</option>
-                  {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
-                </select>
-              </div>
+              {staff && (
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Empresa *</label>
+                  <select value={form.unit_id} onChange={(e) => setForm({ ...form, unit_id: e.target.value, checklist_ids: [] })} className={inputClass}>
+                    <option value="" disabled>Selecione a empresa</option>
+                    {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                    <option value="equipe">Equipe Checkou (vê todas as empresas)</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className={labelClass}>Nome Completo *</label>
                 <input type="text" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className={inputClass} />
@@ -368,6 +411,23 @@ export default function AdminPage() {
                   {Object.entries(sectorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </div>
+              {form.role === "operator" && unitTemplates.length > 0 && (
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Checklists desta pessoa</label>
+                  <div className="flex flex-wrap gap-2">
+                    {unitTemplates.map((template) => {
+                      const linked = form.checklist_ids.includes(template.id);
+                      return (
+                        <button key={template.id} type="button" onClick={() => toggleFormChecklist(template.id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors cursor-pointer", linked ? "bg-primary text-white border-primary" : "bg-surface-container-low text-on-surface-variant border-outline-variant/10 hover:border-primary/40")}>
+                          <span className="material-symbols-outlined text-[14px]">{linked ? "check" : "add"}</span>
+                          {template.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-on-surface-variant mt-2">Sem nenhum marcado, a pessoa vê todos os checklists da empresa.</p>
+                </div>
+              )}
               <div className="md:col-span-2">
                 <label className={labelClass}>{editing === "new" ? "Senha *" : "Nova senha (opcional)"}</label>
                 <div className="flex gap-2">
@@ -378,7 +438,7 @@ export default function AdminPage() {
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
-              <Button variant="primary" onClick={save} disabled={saving || !form.full_name.trim() || !form.email.trim() || (editing === "new" && form.password.length < 6)}>
+              <Button variant="primary" onClick={save} disabled={saving || !form.unit_id || !form.full_name.trim() || !form.email.trim() || (editing === "new" && form.password.length < 6)}>
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             </div>

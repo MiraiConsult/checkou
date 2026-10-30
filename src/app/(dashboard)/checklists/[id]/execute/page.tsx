@@ -36,6 +36,8 @@ export default function ExecuteChecklistPage() {
   const templateId = params.id as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  const startedAt = useRef<string | null>(null);
+  const answeredAt = useRef<Record<string, string>>({});
 
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
@@ -64,6 +66,7 @@ export default function ExecuteChecklistPage() {
     supabase.from("checklist_templates").select("id, name, sections, requires_approval, allow_gallery, unit_ids").eq("id", templateId).single()
       .then(({ data }) => {
         if (!data) { router.push("/checklists"); return; }
+        startedAt.current = new Date().toISOString();
         setTemplate(data as TemplateData);
         const linkedUnits: string[] = data.unit_ids || [];
         setSelectedUnit(linkedUnits[0] || "");
@@ -81,6 +84,11 @@ export default function ExecuteChecklistPage() {
         setLoading(false);
       });
   }, [templateId, router]);
+
+  const answerItem = (itemId: string, answer: Answer) => {
+    answeredAt.current[itemId] = new Date().toISOString();
+    setAnswers((p) => ({ ...p, [itemId]: answer }));
+  };
 
   const totalAnswered = Object.keys(answers).length;
   const progress = questions.length > 0 ? (totalAnswered / questions.length) * 100 : 0;
@@ -177,6 +185,7 @@ export default function ExecuteChecklistPage() {
       observation: observations[itemId] || null,
       evidence_urls: photos[itemId] || [],
       evidence_url: photos[itemId]?.[0] || null,
+      answered_at: answeredAt.current[itemId] || null,
     }));
 
     // Capture geolocation (best effort)
@@ -201,6 +210,7 @@ export default function ExecuteChecklistPage() {
       score,
       responses,
       geolocation,
+      started_at: startedAt.current,
       completed_at: new Date().toISOString(),
       ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
     });
@@ -441,23 +451,23 @@ export default function ExecuteChecklistPage() {
 
                               {responseType === "conform" && (
                                 <>
-                                  <button onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: "conform" } }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "conform" ? "bg-tertiary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-tertiary/10 hover:text-tertiary")}>
+                                  <button onClick={() => answerItem(item.id, { answer: "conform" })} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "conform" ? "bg-tertiary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-tertiary/10 hover:text-tertiary")}>
                                     Conforme
                                   </button>
-                                  <button onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: "non_conform" } }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "non_conform" ? "bg-error text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-error/10 hover:text-error")}>
+                                  <button onClick={() => answerItem(item.id, { answer: "non_conform" })} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "non_conform" ? "bg-error text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-error/10 hover:text-error")}>
                                     Não Conforme
                                   </button>
                                 </>
                               )}
 
                               {responseType === "multiple_choice" && (item.options || []).map((option) => (
-                                <button key={option.label} onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: option.conform ? "conform" : "non_conform", value: option.label } }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.value === option.label ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
+                                <button key={option.label} onClick={() => answerItem(item.id, { answer: option.conform ? "conform" : "non_conform", value: option.label })} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.value === option.label ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
                                   {option.label}
                                 </button>
                               ))}
 
                               {responseType === "scale" && scaleValues(item.scale || defaultScale).map((value) => (
-                                <button key={value} onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: "scale", value } }))} className={cn("min-w-9 h-9 px-2 rounded-lg text-sm font-bold transition-all cursor-pointer", current?.value === value ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
+                                <button key={value} onClick={() => answerItem(item.id, { answer: "scale", value })} className={cn("min-w-9 h-9 px-2 rounded-lg text-sm font-bold transition-all cursor-pointer", current?.value === value ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
                                   {value}
                                 </button>
                               ))}

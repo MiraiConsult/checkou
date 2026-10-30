@@ -2,39 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { ScoreRing } from "@/components/approvals/ScoreRing";
-import { cn } from "@/lib/utils/cn";
+import { ExecutionReport, type ReportData } from "@/components/report/ExecutionReport";
 import { createClient } from "@/lib/supabase/client";
-import { RichText } from "@/components/ui/RichText";
+import { useAuth, canManageUsers } from "@/hooks/useAuth";
 import type { ChecklistResponse, ChecklistSection } from "@/lib/types/checklist";
-import { computeScore, groupBySubsection, responseEvidence, subsectionNumbers } from "@/lib/utils/checklist";
 
-type Response = ChecklistResponse;
-type Section = ChecklistSection;
-
-interface ExecutionData {
+interface ExecutionData extends ReportData {
   id: string;
-  score: number;
-  status: string;
-  started_at: string;
-  completed_at: string | null;
-  responses: Response[];
-  template_name: string;
-  template_icon: string;
-  sections: Section[];
-  operator_name: string;
-  operator_email: string;
+  public_token: string | null;
 }
-
-const statusLabel: Record<string, { label: string; variant: "success" | "error" | "info" | "pending" }> = {
-  completed: { label: "Concluído", variant: "info" },
-  approved: { label: "Aprovado", variant: "success" },
-  rejected: { label: "Reprovado", variant: "error" },
-  in_progress: { label: "Em Andamento", variant: "pending" },
-};
 
 export default function ExecutionDetailPage() {
   const router = useRouter();
@@ -42,21 +19,25 @@ export default function ExecutionDetailPage() {
   const execId = params.id as string;
   const [exec, setExec] = useState<ExecutionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     const supabase = createClient();
     const fetchData = async () => {
       const { data: raw } = await supabase
         .from("checklist_executions")
-        .select("id, score, status, started_at, completed_at, responses, template_id, operator_id")
+        .select("id, score, status, started_at, completed_at, responses, geolocation, public_token, template_id, operator_id, unit_id")
         .eq("id", execId)
         .single();
 
       if (!raw) { setLoading(false); return; }
 
-      const [tRes, pRes] = await Promise.all([
-        supabase.from("checklist_templates").select("name, icon, sections").eq("id", raw.template_id).single(),
+      const [tRes, pRes, uRes] = await Promise.all([
+        supabase.from("checklist_templates").select("name, sections").eq("id", raw.template_id).single(),
         supabase.from("profiles").select("full_name, email").eq("id", raw.operator_id).single(),
+        raw.unit_id ? supabase.from("units").select("name").eq("id", raw.unit_id).single() : Promise.resolve({ data: null }),
       ]);
 
       setExec({
@@ -65,10 +46,12 @@ export default function ExecutionDetailPage() {
         status: raw.status,
         started_at: raw.started_at,
         completed_at: raw.completed_at,
-        responses: Array.isArray(raw.responses) ? raw.responses as Response[] : [],
+        responses: Array.isArray(raw.responses) ? raw.responses as ChecklistResponse[] : [],
+        geolocation: raw.geolocation,
+        public_token: raw.public_token,
         template_name: tRes.data?.name || "—",
-        template_icon: tRes.data?.icon || "fact_check",
-        sections: Array.isArray(tRes.data?.sections) ? tRes.data.sections as Section[] : [],
+        sections: Array.isArray(tRes.data?.sections) ? tRes.data.sections as ChecklistSection[] : [],
+        unit_name: uRes.data?.name,
         operator_name: pRes.data?.full_name || "—",
         operator_email: pRes.data?.email || "",
       });
@@ -105,160 +88,77 @@ export default function ExecutionDetailPage() {
     );
   }
 
-  const answersMap = new Map(exec.responses.map((r) => [r.item_id, r]));
-  const initials = exec.operator_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  const status = statusLabel[exec.status] || statusLabel.completed;
-  const conformCount = exec.responses.filter((r) => r.answer === "conform").length;
-  const nonConformCount = exec.responses.filter((r) => r.answer === "non_conform").length;
-  const { scaleAverage, scaleMax } = computeScore(exec.sections.flatMap((sec) => sec.items), exec.responses);
+  const publicUrl = exec.public_token ? `${window.location.origin}/r/${exec.public_token}` : "";
+
+  const enableShare = async () => {
+    setShareError("");
+    const { data, error } = await createClient().rpc("set_execution_share", { p_id: execId, p_enabled: true });
+    if (error || !data) {
+      setShareError("Não foi possível gerar o link.");
+      return;
+    }
+    setExec({ ...exec, public_token: data as string });
+    await navigator.clipboard.writeText(`${window.location.origin}/r/${data}`);
+    setCopied(true);
+  };
+
+  const disableShare = async () => {
+    setShareError("");
+    const { error } = await createClient().rpc("set_execution_share", { p_id: execId, p_enabled: false });
+    if (error) {
+      setShareError("Não foi possível desativar o link.");
+      return;
+    }
+    setExec({ ...exec, public_token: null });
+    setCopied(false);
+  };
+
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(publicUrl);
+    setCopied(true);
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => router.back()} className="w-10 h-10 rounded-xl bg-surface-container-low flex items-center justify-center hover:bg-surface-container-high transition-colors cursor-pointer">
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <button onClick={() => router.back()} aria-label="Voltar" className="w-10 h-10 rounded-xl bg-surface-container-low flex items-center justify-center hover:bg-surface-container-high transition-colors cursor-pointer mr-auto">
           <span className="material-symbols-outlined text-on-surface-variant text-[20px]">arrow_back</span>
         </button>
-        <div className="flex-1">
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Resultado da Execução</p>
-          <h2 className="text-2xl font-extrabold text-navy tracking-tight">{exec.template_name}</h2>
-        </div>
-        <Badge variant={status.variant} className="text-sm px-3 py-1">{status.label}</Badge>
+        <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+          Gerar PDF
+        </Button>
+        {canManageUsers(user) && (exec.public_token ? (
+          <>
+            <Button variant="outline" size="sm" onClick={copyLink}>
+              <span className="material-symbols-outlined text-[16px]">{copied ? "check" : "link"}</span>
+              {copied ? "Link copiado" : "Copiar link público"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={disableShare}>
+              <span className="material-symbols-outlined text-[16px]">link_off</span>
+              Desativar link
+            </Button>
+          </>
+        ) : (
+          <Button variant="outline" size="sm" onClick={enableShare}>
+            <span className="material-symbols-outlined text-[16px]">link</span>
+            Gerar link público
+          </Button>
+        ))}
       </div>
+      {shareError && <p className="text-sm text-error font-medium print:hidden">{shareError}</p>}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <Card className="md:col-span-4 flex flex-col items-center justify-center py-6">
-          <ScoreRing score={exec.score} size={100} strokeWidth={8} />
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mt-3">Score de Conformidade</p>
-        </Card>
-
-        <Card className="md:col-span-4">
-          <div className="space-y-4">
-            <div>
-              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Operador</p>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-primary">{initials}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-navy">{exec.operator_name}</p>
-                  <p className="text-xs text-on-surface-variant">{exec.operator_email}</p>
-                </div>
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Data</p>
-              <p className="text-sm text-navy mt-1">
-                {exec.completed_at
-                  ? new Date(exec.completed_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                  : new Date(exec.started_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-              </p>
-            </div>
+      <ExecutionReport
+        report={exec}
+        actions={exec.status === "completed" && (
+          <div className="flex gap-2 mt-5 pt-4 border-t border-outline-variant/10 print:hidden">
+            <Button variant="danger" size="sm" className="flex-1" onClick={() => handleAction("rejected")}>Rejeitar</Button>
+            <Button variant="primary" size="sm" className="flex-1" onClick={() => handleAction("approved")}>
+              <span className="material-symbols-outlined text-[16px]">check</span>Aprovar
+            </Button>
           </div>
-        </Card>
-
-        <Card className="md:col-span-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-on-surface-variant">Conformes</span>
-              <span className="text-lg font-black text-tertiary">{conformCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-on-surface-variant">Não Conformes</span>
-              <span className="text-lg font-black text-error">{nonConformCount}</span>
-            </div>
-            {scaleAverage !== null && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-on-surface-variant">Nota média</span>
-                <span className="text-lg font-black text-primary">{scaleAverage.toFixed(1).replace(".", ",")} de {scaleMax}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-on-surface-variant">Total de Itens</span>
-              <span className="text-lg font-black text-navy">{exec.responses.length}</span>
-            </div>
-          </div>
-
-          {exec.status === "completed" && (
-            <div className="flex gap-2 mt-5 pt-4 border-t border-outline-variant/10">
-              <Button variant="danger" size="sm" className="flex-1" onClick={() => handleAction("rejected")}>Rejeitar</Button>
-              <Button variant="primary" size="sm" className="flex-1" onClick={() => handleAction("approved")}>
-                <span className="material-symbols-outlined text-[16px]">check</span>Aprovar
-              </Button>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Detailed responses by section */}
-      <div className="space-y-6">
-        {exec.sections.map((sec, sIdx) => {
-          const sectionItems = sec.items.filter((i) => answersMap.has(i.id));
-          const sectionConform = sectionItems.filter((i) => answersMap.get(i.id)?.answer === "conform").length;
-          return (
-            <Card key={sIdx}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary">{sIdx + 1}</span>
-                  </div>
-                  <h3 className="text-base font-bold text-navy">{sec.name}</h3>
-                  <span className="text-xs text-outline">{sectionConform}/{sectionItems.length} conformes</span>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {(() => {
-                  const groups = groupBySubsection(sec.items);
-                  const numbers = subsectionNumbers(groups, sIdx + 1);
-                  return groups.map((group) => (
-                    <div key={group.key} className="space-y-2">
-                      {group.name !== null && (
-                        <h4 className="text-sm font-bold text-navy">
-                          <span className="text-primary mr-2">{numbers[group.key]}</span>{group.name}
-                        </h4>
-                      )}
-                      {group.items.map((item) => {
-                        const resp = answersMap.get(item.id);
-                        if (!resp) return null;
-                        const isScale = resp.answer === "scale";
-                        const isConform = resp.answer === "conform" || isScale;
-                        const label = isScale
-                          ? `Nota ${resp.value}${item.scale ? ` de ${item.scale.max}` : ""}`
-                          : resp.value ? String(resp.value) : isConform ? "Conforme" : "Não Conforme";
-                        const evidence = responseEvidence(resp);
-                        return (
-                          <div key={item.id} className={cn("flex items-start gap-3 p-4 rounded-xl border", isConform ? "border-tertiary/20 bg-tertiary-fixed/5" : "border-error/20 bg-error-container/5")}>
-                            <span className={cn("material-symbols-outlined text-[20px] mt-0.5 filled", isConform ? "text-tertiary" : "text-error")}>
-                              {isScale ? "star" : isConform ? "check_circle" : "cancel"}
-                            </span>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-on-surface"><RichText text={item.question} /></p>
-                              <p className={cn("text-xs font-bold mt-1", isConform ? "text-tertiary" : "text-error")}>{label}</p>
-                              {resp.observation && (
-                                <p className="text-xs italic text-on-surface-variant mt-2 border-l-2 border-error pl-2">{resp.observation}</p>
-                              )}
-                              {evidence.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {evidence.map((url) => (
-                                    <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                                      <img src={url} alt="Evidência fotográfica" className="w-32 h-24 rounded-xl object-cover border-2 border-outline-variant/20 hover:border-primary/40 transition-colors" />
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ));
-                })()}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+        )}
+      />
     </div>
   );
 }

@@ -96,6 +96,17 @@ export default function ChecklistsPage() {
     setDeleteConfirm(null);
   };
 
+  const duplicate = async (id: string) => {
+    const supabase = createClient();
+    const { data: source } = await supabase.from("checklist_templates").select("*").eq("id", id).single();
+    if (!source) return;
+    const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...fields } = source;
+    const { data } = await supabase.from("checklist_templates")
+      .insert({ ...fields, name: `${source.name} (cópia)`, status: "draft", unit_ids: [] })
+      .select("id, icon, name, version, description, sections, status, sector, unit_ids").single();
+    if (data) setTemplates([data, ...templates]);
+  };
+
   const iconColors: Record<string, string> = {
     restaurant: "bg-orange-50 text-orange-600",
     cleaning_services: "bg-blue-50 text-blue-600",
@@ -168,6 +179,9 @@ export default function ChecklistsPage() {
                         <div className="absolute right-0 top-8 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/10 py-1 z-10 min-w-[160px]">
                           <button onClick={() => { setMenuOpen(null); router.push(`/checklists/novo?id=${tmpl.id}`); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
                             <span className="material-symbols-outlined text-[16px]">edit</span>Editar
+                          </button>
+                          <button onClick={() => { setMenuOpen(null); duplicate(tmpl.id); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
+                            <span className="material-symbols-outlined text-[16px]">content_copy</span>Duplicar
                           </button>
                           <button onClick={() => { setMenuOpen(null); setDeleteConfirm(tmpl.id); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
                             <span className="material-symbols-outlined text-[16px]">delete</span>Excluir

@@ -51,6 +51,7 @@ export interface ChecklistResponse {
   evidence_url?: string | null;
   evidence_urls?: string[];
   observation?: string | null;
+  answered_at?: string | null;
 }
 
 export interface ChecklistExecution {

@@ -25,7 +25,7 @@ export function TopNavBar() {
   }, [user?.organization_id, user?.unit_id]);
 
   return (
-    <header className="hidden md:flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
+    <header className="hidden md:flex print:hidden items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
       {/* Org name */}
       <div className="flex items-center gap-3">
         {orgName && (
