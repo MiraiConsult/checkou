@@ -62,7 +62,7 @@ export interface ChecklistExecution {
   status: ExecutionStatus;
   score: number;
   responses: ChecklistResponse[];
-  geolocation: { lat: number; lng: number } | null;
+  geolocation: { lat: number; lng: number; accuracy?: number } | null;
   started_at: string;
   completed_at: string | null;
   approved_at: string | null;

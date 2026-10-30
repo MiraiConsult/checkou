@@ -4,6 +4,12 @@ alter table public.profiles add column if not exists checklist_ids uuid[] not nu
 alter table public.pending_users add column if not exists checklist_ids uuid[] not null default '{}';
 alter table public.checklist_executions add column if not exists public_token uuid unique;
 
+-- Ponto da empresa para conferir se a pessoa estava no local ao enviar o checklist
+alter table public.units
+  add column if not exists latitude double precision,
+  add column if not exists longitude double precision,
+  add column if not exists radius_m integer not null default 200;
+
 create table if not exists public.execution_comments (
   id uuid primary key default gen_random_uuid(),
   execution_id uuid not null references public.checklist_executions(id) on delete cascade,
@@ -100,6 +106,7 @@ returns jsonb language sql stable security definer set search_path to 'public' a
     'responses', e.responses, 'geolocation', e.geolocation,
     'template_name', t.name, 'sections', t.sections,
     'operator_name', p.full_name, 'unit_name', u.name,
+    'unit_location', case when u.latitude is not null then jsonb_build_object('lat', u.latitude, 'lng', u.longitude, 'radius_m', u.radius_m) end,
     'comments', coalesce((
       select jsonb_agg(jsonb_build_object('id', c.id, 'author_name', c.author_name, 'body', c.body, 'created_at', c.created_at) order by c.created_at)
       from public.execution_comments c where c.execution_id = e.id

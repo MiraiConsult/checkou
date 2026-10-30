@@ -189,12 +189,12 @@ export default function ExecuteChecklistPage() {
     }));
 
     // Capture geolocation (best effort)
-    let geolocation: { lat: number; lng: number } | null = null;
+    let geolocation: { lat: number; lng: number; accuracy: number } | null = null;
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 });
       });
-      geolocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      geolocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
     } catch { /* geolocation optional */ }
 
     const unitId = user?.unit_id || selectedUnit || null;

@@ -5,7 +5,7 @@ import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { RichText } from "@/components/ui/RichText";
 import { cn } from "@/lib/utils/cn";
 import type { ChecklistResponse, ChecklistSection } from "@/lib/types/checklist";
-import { computeScore, groupBySubsection, responseEvidence, subsectionNumbers } from "@/lib/utils/checklist";
+import { computeScore, distanceMeters, groupBySubsection, responseEvidence, subsectionNumbers } from "@/lib/utils/checklist";
 
 export interface ReportData {
   score: number;
@@ -13,12 +13,13 @@ export interface ReportData {
   started_at: string;
   completed_at: string | null;
   responses: ChecklistResponse[];
-  geolocation: { lat: number; lng: number } | null;
+  geolocation: { lat: number; lng: number; accuracy?: number } | null;
   template_name: string;
   sections: ChecklistSection[];
   operator_name: string;
   operator_email?: string;
   unit_name?: string | null;
+  unit_location?: { lat: number; lng: number; radius_m: number } | null;
 }
 
 const statusLabel: Record<string, { label: string; variant: "success" | "error" | "info" | "pending" }> = {
@@ -37,6 +38,10 @@ function duration(start: string, end: string) {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}min`;
 }
 
+function formatDistance(meters: number) {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1).replace(".", ",")} km`;
+}
+
 export function ExecutionReport({ report, actions }: { report: ReportData; actions?: ReactNode }) {
   const answersMap = new Map(report.responses.map((r) => [r.item_id, r]));
   const initials = report.operator_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -46,6 +51,9 @@ export function ExecutionReport({ report, actions }: { report: ReportData; actio
   const { scaleAverage, scaleMax } = computeScore(report.sections.flatMap((sec) => sec.items), report.responses);
   // Execuções antigas não têm horário por questão e gravavam o início igual ao fim
   const hasTimes = report.responses.some((r) => r.answered_at);
+  const distance = report.geolocation && report.unit_location ? distanceMeters(report.geolocation, report.unit_location) : null;
+  // A margem de erro do GPS conta a favor: só marca fora quando nem ela alcança o raio
+  const onSite = distance !== null && report.unit_location && distance - (report.geolocation?.accuracy || 0) <= report.unit_location.radius_m;
 
   return (
     <div className="space-y-6">
@@ -94,9 +102,16 @@ export function ExecutionReport({ report, actions }: { report: ReportData; actio
             <div>
               <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Localização</p>
               {report.geolocation ? (
+                <>
                 <a href={`https://www.google.com/maps?q=${report.geolocation.lat},${report.geolocation.lng}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary font-semibold hover:underline">
                   {report.geolocation.lat.toFixed(5)}, {report.geolocation.lng.toFixed(5)}
                 </a>
+                {distance !== null && (
+                  <p className={cn("text-xs font-bold mt-1", onSite ? "text-tertiary" : "text-error")}>
+                    {onSite ? "No local" : "Fora do local"} · a {formatDistance(distance)} da empresa
+                  </p>
+                )}
+                </>
               ) : (
                 <p className="text-sm text-on-surface-variant mt-1">Não registrada</p>
               )}

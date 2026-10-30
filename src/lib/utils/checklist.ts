@@ -42,6 +42,14 @@ export function subsectionNumbers<T>(groups: ItemGroup<T>[], sectionNumber: numb
   return numbers;
 }
 
+export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const rad = (degrees: number) => degrees * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(h));
+}
+
 export function responseEvidence(response: Pick<ChecklistResponse, "evidence_url" | "evidence_urls">): string[] {
   if (response.evidence_urls?.length) return response.evidence_urls;
   return response.evidence_url ? [response.evidence_url] : [];

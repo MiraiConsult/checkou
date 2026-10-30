@@ -37,7 +37,7 @@ export default function ExecutionDetailPage() {
       const [tRes, pRes, uRes] = await Promise.all([
         supabase.from("checklist_templates").select("name, sections").eq("id", raw.template_id).single(),
         supabase.from("profiles").select("full_name, email").eq("id", raw.operator_id).single(),
-        raw.unit_id ? supabase.from("units").select("name").eq("id", raw.unit_id).single() : Promise.resolve({ data: null }),
+        raw.unit_id ? supabase.from("units").select("*").eq("id", raw.unit_id).single() : Promise.resolve({ data: null }),
       ]);
 
       setExec({
@@ -52,6 +52,7 @@ export default function ExecutionDetailPage() {
         template_name: tRes.data?.name || "—",
         sections: Array.isArray(tRes.data?.sections) ? tRes.data.sections as ChecklistSection[] : [],
         unit_name: uRes.data?.name,
+        unit_location: uRes.data?.latitude != null ? { lat: uRes.data.latitude, lng: uRes.data.longitude, radius_m: uRes.data.radius_m } : null,
         operator_name: pRes.data?.full_name || "—",
         operator_email: pRes.data?.email || "",
       });
