@@ -28,7 +28,11 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push("/");
+    // Equipe Checkou entra direto no painel de admin
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase.from("profiles").select("role, unit_id").eq("id", user?.id).single();
+    const staff = profile && !profile.unit_id && (profile.role === "admin" || profile.role === "master");
+    router.push(staff ? "/admin" : "/");
     router.refresh();
   };
 
