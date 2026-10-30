@@ -8,18 +8,12 @@ import { Button } from "@/components/ui/Button";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
+import { RichText } from "@/components/ui/RichText";
+import type { ChecklistResponse, ChecklistSection } from "@/lib/types/checklist";
+import { computeScore, groupBySubsection, responseEvidence, subsectionNumbers } from "@/lib/utils/checklist";
 
-interface Response {
-  item_id: string;
-  answer: "conform" | "non_conform";
-  observation: string | null;
-  evidence_url: string | null;
-}
-
-interface Section {
-  name: string;
-  items: { id: string; question: string; required_evidence: boolean }[];
-}
+type Response = ChecklistResponse;
+type Section = ChecklistSection;
 
 interface ExecutionData {
   id: string;
@@ -116,6 +110,7 @@ export default function ExecutionDetailPage() {
   const status = statusLabel[exec.status] || statusLabel.completed;
   const conformCount = exec.responses.filter((r) => r.answer === "conform").length;
   const nonConformCount = exec.responses.filter((r) => r.answer === "non_conform").length;
+  const { scaleAverage, scaleMax } = computeScore(exec.sections.flatMap((sec) => sec.items), exec.responses);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -173,6 +168,12 @@ export default function ExecutionDetailPage() {
               <span className="text-sm text-on-surface-variant">Não Conformes</span>
               <span className="text-lg font-black text-error">{nonConformCount}</span>
             </div>
+            {scaleAverage !== null && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-on-surface-variant">Nota média</span>
+                <span className="text-lg font-black text-primary">{scaleAverage.toFixed(1).replace(".", ",")} de {scaleMax}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-on-surface-variant">Total de Itens</span>
               <span className="text-lg font-black text-navy">{exec.responses.length}</span>
@@ -206,33 +207,53 @@ export default function ExecutionDetailPage() {
                   <span className="text-xs text-outline">{sectionConform}/{sectionItems.length} conformes</span>
                 </div>
               </div>
-              <div className="space-y-2">
-                {sec.items.map((item) => {
-                  const resp = answersMap.get(item.id);
-                  if (!resp) return null;
-                  const isConform = resp.answer === "conform";
-                  return (
-                    <div key={item.id} className={cn("flex items-start gap-3 p-4 rounded-xl border", isConform ? "border-tertiary/20 bg-tertiary-fixed/5" : "border-error/20 bg-error-container/5")}>
-                      <span className={cn("material-symbols-outlined text-[20px] mt-0.5 filled", isConform ? "text-tertiary" : "text-error")}>
-                        {isConform ? "check_circle" : "cancel"}
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-on-surface">{item.question}</p>
-                        <p className={cn("text-xs font-bold mt-1", isConform ? "text-tertiary" : "text-error")}>
-                          {isConform ? "Conforme" : "Não Conforme"}
-                        </p>
-                        {resp.observation && (
-                          <p className="text-xs italic text-on-surface-variant mt-2 border-l-2 border-error pl-2">{resp.observation}</p>
-                        )}
-                        {resp.evidence_url && (
-                          <a href={resp.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
-                            <img src={resp.evidence_url} alt="Evidência fotográfica" className="w-32 h-24 rounded-xl object-cover border-2 border-outline-variant/20 hover:border-primary/40 transition-colors" />
-                          </a>
-                        )}
-                      </div>
+              <div className="space-y-4">
+                {(() => {
+                  const groups = groupBySubsection(sec.items);
+                  const numbers = subsectionNumbers(groups, sIdx + 1);
+                  return groups.map((group) => (
+                    <div key={group.key} className="space-y-2">
+                      {group.name !== null && (
+                        <h4 className="text-sm font-bold text-navy">
+                          <span className="text-primary mr-2">{numbers[group.key]}</span>{group.name}
+                        </h4>
+                      )}
+                      {group.items.map((item) => {
+                        const resp = answersMap.get(item.id);
+                        if (!resp) return null;
+                        const isScale = resp.answer === "scale";
+                        const isConform = resp.answer === "conform" || isScale;
+                        const label = isScale
+                          ? `Nota ${resp.value}${item.scale ? ` de ${item.scale.max}` : ""}`
+                          : resp.value ? String(resp.value) : isConform ? "Conforme" : "Não Conforme";
+                        const evidence = responseEvidence(resp);
+                        return (
+                          <div key={item.id} className={cn("flex items-start gap-3 p-4 rounded-xl border", isConform ? "border-tertiary/20 bg-tertiary-fixed/5" : "border-error/20 bg-error-container/5")}>
+                            <span className={cn("material-symbols-outlined text-[20px] mt-0.5 filled", isConform ? "text-tertiary" : "text-error")}>
+                              {isScale ? "star" : isConform ? "check_circle" : "cancel"}
+                            </span>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-on-surface"><RichText text={item.question} /></p>
+                              <p className={cn("text-xs font-bold mt-1", isConform ? "text-tertiary" : "text-error")}>{label}</p>
+                              {resp.observation && (
+                                <p className="text-xs italic text-on-surface-variant mt-2 border-l-2 border-error pl-2">{resp.observation}</p>
+                              )}
+                              {evidence.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {evidence.map((url) => (
+                                    <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                                      <img src={url} alt="Evidência fotográfica" className="w-32 h-24 rounded-xl object-cover border-2 border-outline-variant/20 hover:border-primary/40 transition-colors" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  ));
+                })()}
               </div>
             </Card>
           );

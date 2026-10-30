@@ -1,9 +1,11 @@
+import type { ChecklistSectionItem } from "@/lib/types/checklist";
+
 export interface ModelTemplate {
   name: string;
   description: string;
   icon: string;
   category: string;
-  sections: { name: string; items: { id: string; question: string; required_evidence: boolean }[] }[];
+  sections: { name: string; items: ChecklistSectionItem[] }[];
 }
 
 export const modelTemplates: ModelTemplate[] = [
@@ -134,6 +136,27 @@ export const modelTemplates: ModelTemplate[] = [
       { name: "Bebidas e Descartáveis", items: [
         { id: "8", question: "Contagem de bebidas confere?", required_evidence: false },
         { id: "9", question: "Nível mínimo de estoque atendido?", required_evidence: false },
+      ]},
+    ],
+  },
+  {
+    name: "Cliente Oculto",
+    description: "Avaliação da experiência do cliente com notas de 1 a 5",
+    icon: "storefront",
+    category: "Cliente Oculto",
+    sections: [
+      { name: "Atendimento", items: [
+        { id: "1", question: "Recepção e cordialidade", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
+        { id: "2", question: "Agilidade do atendimento", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
+        { id: "3", question: "Conhecimento do cardápio", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
+      ]},
+      { name: "Produto", items: [
+        { id: "4", question: "Sabor da comida", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
+        { id: "5", question: "Apresentação dos pratos", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
+      ]},
+      { name: "Ambiente", items: [
+        { id: "6", question: "Limpeza do salão e dos banheiros", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
+        { id: "7", question: "Conforto do ambiente", required_evidence: false, response_type: "scale", scale: { min: 1, max: 5, step: 1 } },
       ]},
     ],
   },

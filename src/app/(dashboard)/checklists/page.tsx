@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { modelTemplates } from "@/lib/data/templates";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isStaff } from "@/hooks/useAuth";
 
 interface Template {
   id: string;
@@ -20,6 +20,7 @@ interface Template {
   sections: { name: string; items: unknown[] }[];
   status: string;
   sector?: string;
+  unit_ids?: string[];
 }
 
 export default function ChecklistsPage() {
@@ -33,6 +34,8 @@ export default function ChecklistsPage() {
   const [copying, setCopying] = useState<number | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const { user } = useAuth();
+  const staff = isStaff(user);
+  const [unitNames, setUnitNames] = useState<Record<string, string>>({});
 
   const copyModel = async (index: number) => {
     if (!user?.organization_id) return;
@@ -58,7 +61,7 @@ export default function ChecklistsPage() {
     const supabase = createClient();
     const fetchAll = async () => {
       let query = supabase.from("checklist_templates")
-        .select("id, icon, name, version, description, sections, status, sector")
+        .select("id, icon, name, version, description, sections, status, sector, unit_ids")
         .order("created_at", { ascending: false });
 
       // Operators only see published checklists for their sector (or general)
@@ -70,6 +73,9 @@ export default function ChecklistsPage() {
       }
       const { data } = await query;
       setTemplates(data || []);
+
+      const { data: units } = await supabase.from("units").select("id, name");
+      setUnitNames(Object.fromEntries((units || []).map((u) => [u.id, u.name])));
 
       // Fetch execution counts per template
       const { data: execs } = await supabase.from("checklist_executions").select("template_id");
@@ -113,7 +119,7 @@ export default function ChecklistsPage() {
           <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Gestão de Checklists</p>
           <h2 className="text-3xl font-extrabold text-navy tracking-tight">Templates de Verificação</h2>
         </div>
-        {(user?.role === "admin" || user?.role === "master") && (
+        {staff && (
           <Link href="/checklists/novo">
             <Button variant="primary">
               <span className="material-symbols-outlined text-[18px]">add</span>
@@ -153,7 +159,7 @@ export default function ChecklistsPage() {
                 <div className="flex items-center gap-2">
                   {tmpl.status === "draft" && <Badge variant="warning">Rascunho</Badge>}
                   <Badge variant="info">v{tmpl.version}</Badge>
-                  {user?.role === "admin" || user?.role === "master" ? (
+                  {staff ? (
                     <div className="relative">
                       <button onClick={() => setMenuOpen(menuOpen === tmpl.id ? null : tmpl.id)} className="p-1 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
                         <span className="material-symbols-outlined text-outline text-[18px]">more_horiz</span>
@@ -174,6 +180,17 @@ export default function ChecklistsPage() {
               </div>
               <h3 className="text-base font-bold text-navy mb-1">{tmpl.name}</h3>
               <p className="text-xs text-on-surface-variant mb-4">{tmpl.description}</p>
+              {staff && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {(tmpl.unit_ids || []).length === 0 ? (
+                    <span className="text-[11px] text-outline italic">Sem empresa vinculada</span>
+                  ) : (tmpl.unit_ids || []).map((id) => (
+                    <span key={id} className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/5 rounded-full px-2 py-0.5">
+                      <span className="material-symbols-outlined text-[12px]">storefront</span>{unitNames[id] || "Empresa"}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-4 text-xs text-outline">
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">folder</span>{secs.length} seções</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">checklist</span>{itemCount} itens</span>
@@ -184,7 +201,7 @@ export default function ChecklistsPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-5 pt-4 border-t border-outline-variant/10">
-                {(user?.role === "admin" || user?.role === "master") && (
+                {staff && (
                   <button onClick={() => router.push(`/checklists/novo?id=${tmpl.id}`)} className="flex-1 text-xs font-semibold text-on-surface-variant hover:text-primary py-2 rounded-lg hover:bg-primary/5 transition-all cursor-pointer">
                     <span className="material-symbols-outlined text-[16px] align-middle mr-1">edit</span>Editar
                   </button>
@@ -197,7 +214,7 @@ export default function ChecklistsPage() {
           );
         })}
 
-        {(user?.role === "admin" || user?.role === "master") && (
+        {staff && (
           <Link href="/checklists/novo" className="border-2 border-dashed border-outline-variant/30 rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group min-h-[240px]">
             <div className="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
               <span className="material-symbols-outlined text-outline text-[28px] group-hover:text-primary transition-colors">add</span>
@@ -262,7 +279,7 @@ export default function ChecklistsPage() {
       )}
 
       {/* Models library */}
-      {(user?.role === "admin" || user?.role === "master") && (<div>
+      {staff && (<div>
         <button onClick={() => setShowModels(!showModels)} className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline cursor-pointer">
           <span className="material-symbols-outlined text-[18px]">{showModels ? "expand_less" : "auto_awesome"}</span>
           {showModels ? "Fechar modelos" : "Explorar modelos prontos"}
@@ -305,7 +322,7 @@ export default function ChecklistsPage() {
         )}
       </div>)}
 
-      {(user?.role === "admin" || user?.role === "master") && (
+      {staff && (
         <FloatingActionButton onClick={() => router.push("/checklists/novo")} />
       )}
     </div>

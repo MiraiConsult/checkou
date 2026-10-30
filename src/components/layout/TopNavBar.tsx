@@ -3,7 +3,7 @@
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isStaff } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
 export function TopNavBar() {
@@ -15,9 +15,14 @@ export function TopNavBar() {
   useEffect(() => {
     if (!user?.organization_id) return;
     const supabase = createClient();
+    if (user.unit_id) {
+      supabase.from("units").select("name").eq("id", user.unit_id).single()
+        .then(({ data }) => { if (data) setOrgName(data.name); });
+      return;
+    }
     supabase.from("organizations").select("name").eq("id", user.organization_id).single()
       .then(({ data }) => { if (data) setOrgName(data.name); });
-  }, [user?.organization_id]);
+  }, [user?.organization_id, user?.unit_id]);
 
   return (
     <header className="hidden md:flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
@@ -35,9 +40,11 @@ export function TopNavBar() {
       <div className="flex items-center gap-3">
         <SearchInput placeholder="Buscar..." className="w-56" />
 
-        <Link href="/configuracoes/alertas" className="relative p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
-          <span className="material-symbols-outlined text-on-surface-variant text-[22px]">notifications</span>
-        </Link>
+        {isStaff(user) && (
+          <Link href="/configuracoes/alertas" className="relative p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
+            <span className="material-symbols-outlined text-on-surface-variant text-[22px]">notifications</span>
+          </Link>
+        )}
 
         <Link href="/relatorios" className="p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
           <span className="material-symbols-outlined text-on-surface-variant text-[22px]">help</span>
@@ -57,10 +64,12 @@ export function TopNavBar() {
                 <p className="text-sm font-semibold text-navy">{user?.name || "..."}</p>
                 <p className="text-xs text-on-surface-variant">{user?.email}</p>
               </div>
-              <Link href="/configuracoes/alertas" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
-                <span className="material-symbols-outlined text-[16px]">settings</span>
-                Configurações
-              </Link>
+              {isStaff(user) && (
+                <Link href="/configuracoes/alertas" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer">
+                  <span className="material-symbols-outlined text-[16px]">settings</span>
+                  Configurações
+                </Link>
+              )}
               <button onClick={() => { setShowUserMenu(false); logout(); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors cursor-pointer">
                 <span className="material-symbols-outlined text-[16px]">logout</span>
                 Sair

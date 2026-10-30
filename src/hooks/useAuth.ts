@@ -10,6 +10,12 @@ interface UserProfile {
   avatar_url: string | null;
   organization_id: string;
   sector: string;
+  unit_id: string | null;
+}
+
+// Equipe Checkou: administra todas as empresas. Quem tem unit_id é usuário de um cliente.
+export function isStaff(user: UserProfile | null) {
+  return !!user && !user.unit_id && (user.role === "admin" || user.role === "master");
 }
 
 interface AuthState {
@@ -35,7 +41,7 @@ export const useAuth = create<AuthState>((set) => ({
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, full_name, role, email, avatar_url, organization_id, sector")
+      .select("id, full_name, role, email, avatar_url, organization_id, sector, unit_id")
       .eq("id", authUser.id)
       .single();
 
@@ -49,6 +55,7 @@ export const useAuth = create<AuthState>((set) => ({
           avatar_url: profile.avatar_url,
           organization_id: profile.organization_id,
           sector: profile.sector || "geral",
+          unit_id: profile.unit_id,
         },
         loading: false,
       });

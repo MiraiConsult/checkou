@@ -10,20 +10,25 @@ import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { logActivity } from "@/lib/utils/activity";
+import { CameraCapture } from "@/components/ui/CameraCapture";
+import { RichText } from "@/components/ui/RichText";
+import type { ChecklistResponse, ChecklistSectionItem } from "@/lib/types/checklist";
+import { computeScore, defaultScale, groupBySubsection, scaleValues, subsectionNumbers } from "@/lib/utils/checklist";
 
-interface QuestionItem {
-  id: string;
+interface QuestionItem extends ChecklistSectionItem {
   section: string;
-  question: string;
-  required_evidence: boolean;
 }
 
 interface TemplateData {
   id: string;
   name: string;
-  sections: { name: string; items: { id: string; question: string; required_evidence: boolean }[] }[];
+  sections: { name: string; items: ChecklistSectionItem[] }[];
   requires_approval?: boolean;
+  allow_gallery?: boolean;
+  unit_ids?: string[];
 }
+
+type Answer = Pick<ChecklistResponse, "answer" | "value">;
 
 export default function ExecuteChecklistPage() {
   const router = useRouter();
@@ -36,9 +41,14 @@ export default function ExecuteChecklistPage() {
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [answers, setAnswers] = useState<Record<string, "conform" | "non_conform">>({});
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [observations, setObservations] = useState<Record<string, string>>({});
-  const [photos, setPhotos] = useState<Record<string, string>>({});
+  const [photos, setPhotos] = useState<Record<string, string[]>>({});
+  const [cameraTargetId, setCameraTargetId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [units, setUnits] = useState<{ id: string; name: string }[]>([]);
+  const [selectedUnit, setSelectedUnit] = useState("");
   const [desktopObsId, setDesktopObsId] = useState<string | null>(null);
   const [desktopObsText, setDesktopObsText] = useState("");
   const [taskGenerated, setTaskGenerated] = useState<Record<string, boolean>>({});
@@ -51,15 +61,20 @@ export default function ExecuteChecklistPage() {
   // Load template from Supabase
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_templates").select("id, name, sections, requires_approval").eq("id", templateId).single()
+    supabase.from("checklist_templates").select("id, name, sections, requires_approval, allow_gallery, unit_ids").eq("id", templateId).single()
       .then(({ data }) => {
         if (!data) { router.push("/checklists"); return; }
         setTemplate(data as TemplateData);
+        const linkedUnits: string[] = data.unit_ids || [];
+        setSelectedUnit(linkedUnits[0] || "");
+        if (linkedUnits.length > 1) {
+          supabase.from("units").select("id, name").in("id", linkedUnits).then(({ data: rows }) => setUnits(rows || []));
+        }
         const qs: QuestionItem[] = [];
         const secs = Array.isArray(data.sections) ? data.sections : [];
-        secs.forEach((sec: { name: string; items: { id: string; question: string; required_evidence: boolean }[] }) => {
+        secs.forEach((sec: { name: string; items: ChecklistSectionItem[] }) => {
           (sec.items || []).forEach((item) => {
-            qs.push({ id: item.id, section: sec.name, question: item.question, required_evidence: item.required_evidence });
+            qs.push({ ...item, section: sec.name });
           });
         });
         setQuestions(qs);
@@ -69,8 +84,10 @@ export default function ExecuteChecklistPage() {
 
   const totalAnswered = Object.keys(answers).length;
   const progress = questions.length > 0 ? (totalAnswered / questions.length) * 100 : 0;
-  const conformCount = Object.values(answers).filter((a) => a === "conform").length;
-  const nonConformCount = Object.values(answers).filter((a) => a === "non_conform").length;
+  const conformCount = Object.values(answers).filter((a) => a.answer === "conform").length;
+  const nonConformCount = Object.values(answers).filter((a) => a.answer === "non_conform").length;
+  const responseList = Object.entries(answers).map(([item_id, a]) => ({ item_id, ...a }));
+  const { score, scaleAverage, scaleMax } = computeScore(questions, responseList);
 
   const sections = questions.reduce((acc, q) => {
     if (!acc[q.section]) acc[q.section] = [];
@@ -79,25 +96,51 @@ export default function ExecuteChecklistPage() {
   }, {} as Record<string, QuestionItem[]>);
 
   const handlePhotoClick = (itemId: string) => {
-    setPhotoTargetId(itemId);
-    fileInputRef.current?.click();
+    setUploadError("");
+    if (template?.allow_gallery) {
+      setPhotoTargetId(itemId);
+      fileInputRef.current?.click();
+    } else {
+      setCameraTargetId(itemId);
+    }
+  };
+
+  const uploadPhoto = async (itemId: string, photo: Blob, extension: string, index: number) => {
+    const supabase = createClient();
+    const path = `${templateId}/${itemId}_${Date.now()}_${index}.${extension}`;
+    const { error } = await supabase.storage.from("evidence").upload(path, photo);
+    if (error) {
+      setUploadError("Não foi possível enviar a foto. Verifique a internet e tente de novo.");
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("evidence").getPublicUrl(path);
+    setPhotos((prev) => ({ ...prev, [itemId]: [...(prev[itemId] || []), urlData.publicUrl] }));
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !photoTargetId) return;
-    const supabase = createClient();
-    const path = `${templateId}/${photoTargetId}_${Date.now()}.${file.name.split(".").pop()}`;
-    const { error } = await supabase.storage.from("evidence").upload(path, file);
-    if (!error) {
-      const { data: urlData } = supabase.storage.from("evidence").getPublicUrl(path);
-      setPhotos((prev) => ({ ...prev, [photoTargetId]: urlData.publicUrl }));
-    }
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !photoTargetId) return;
+    setUploading(true);
+    await Promise.all(files.map((file, index) => uploadPhoto(photoTargetId, file, file.name.split(".").pop() || "jpg", index)));
+    setUploading(false);
     setPhotoTargetId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const missingPhotos = questions.filter((q) => q.required_evidence && answers[q.id] && !photos[q.id]);
+  const handleCameraCapture = async (photo: Blob) => {
+    if (!cameraTargetId) return;
+    const itemId = cameraTargetId;
+    setCameraTargetId(null);
+    setUploading(true);
+    await uploadPhoto(itemId, photo, "jpg", 0);
+    setUploading(false);
+  };
+
+  const removePhoto = (itemId: string, url: string) => {
+    setPhotos((prev) => ({ ...prev, [itemId]: (prev[itemId] || []).filter((photo) => photo !== url) }));
+  };
+
+  const missingPhotos = questions.filter((q) => q.required_evidence && answers[q.id] && !photos[q.id]?.length);
   const canSubmit = totalAnswered === questions.length && missingPhotos.length === 0;
 
   const handleSubmit = () => {
@@ -127,12 +170,13 @@ export default function ExecuteChecklistPage() {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return;
 
-    const score = totalAnswered > 0 ? Math.round((conformCount / totalAnswered) * 100) : 0;
-    const responses = Object.entries(answers).map(([itemId, answer]) => ({
+    const responses = Object.entries(answers).map(([itemId, { answer, value }]) => ({
       item_id: itemId,
       answer,
+      value: value ?? null,
       observation: observations[itemId] || null,
-      evidence_url: photos[itemId] || null,
+      evidence_urls: photos[itemId] || [],
+      evidence_url: photos[itemId]?.[0] || null,
     }));
 
     // Capture geolocation (best effort)
@@ -144,14 +188,12 @@ export default function ExecuteChecklistPage() {
       geolocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     } catch { /* geolocation optional */ }
 
-    // Get first unit for this org (or null)
-    const { data: units } = await supabase.from("units").select("id").limit(1);
-    const unitId = units?.[0]?.id || null;
+    const unitId = user?.unit_id || selectedUnit || null;
 
     // If template requires approval, goes to pending queue; else auto-approved
     const status = template?.requires_approval ? "completed" : "approved";
 
-    await supabase.from("checklist_executions").insert({
+    const { error: insertError } = await supabase.from("checklist_executions").insert({
       template_id: templateId,
       unit_id: unitId,
       operator_id: authUser.id,
@@ -162,6 +204,10 @@ export default function ExecuteChecklistPage() {
       completed_at: new Date().toISOString(),
       ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
     });
+    if (insertError) {
+      setPasswordError("Não foi possível enviar o checklist. Tente de novo.");
+      return;
+    }
 
     // Log activity
     if (user?.organization_id) {
@@ -195,7 +241,9 @@ export default function ExecuteChecklistPage() {
           <span className="material-symbols-outlined text-tertiary text-[40px] filled">check_circle</span>
         </div>
         <h2 className="text-2xl font-extrabold text-navy">Checklist Enviado!</h2>
-        <p className="text-sm text-on-surface-variant">Score: {totalAnswered > 0 ? Math.round((conformCount / totalAnswered) * 100) : 0}% de conformidade</p>
+        <p className="text-sm text-on-surface-variant">
+          {scaleAverage !== null ? `Nota: ${scaleAverage.toFixed(1).replace(".", ",")} de ${scaleMax}` : `Score: ${score}% de conformidade`}
+        </p>
         <p className="text-xs text-outline">Redirecionando...</p>
       </div>
     );
@@ -203,7 +251,8 @@ export default function ExecuteChecklistPage() {
 
   return (
     <div>
-      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+      {cameraTargetId && <CameraCapture onCapture={handleCameraCapture} onClose={() => setCameraTargetId(null)} />}
 
       {/* Password confirmation modal */}
       {showPasswordModal && (
@@ -261,9 +310,18 @@ export default function ExecuteChecklistPage() {
               <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
             </div>
             <ProgressBar value={progress} color="primary" size="lg" />
+            {!user?.unit_id && units.length > 1 && (
+              <label className="flex items-center gap-2 mt-4 text-sm text-on-surface-variant">
+                Empresa:
+                <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="bg-surface-container-low rounded-lg px-3 py-1.5 text-sm text-on-surface border border-outline-variant/10 outline-none">
+                  {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                </select>
+              </label>
+            )}
             <div className="flex items-center gap-6 mt-4 text-xs text-on-surface-variant">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-tertiary" /> {conformCount} Conformes</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-error" /> {nonConformCount} Não Conformes</span>
+              {scaleAverage !== null && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> Nota {scaleAverage.toFixed(1).replace(".", ",")}</span>}
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-outline-variant" /> {questions.length - totalAnswered} Pendentes</span>
             </div>
           </Card>
@@ -287,87 +345,138 @@ export default function ExecuteChecklistPage() {
           </div>
         </div>
 
+        {uploadError && <p className="text-sm text-error font-medium">{uploadError}</p>}
+
         {/* Sections */}
         <div className="space-y-6">
-          {Object.entries(sections).map(([sectionName, items]) => {
+          {Object.entries(sections).map(([sectionName, items], sIdx) => {
             const sectionAnswered = items.filter((i) => answers[i.id]).length;
             const allAnswered = sectionAnswered === items.length;
+            const groups = groupBySubsection(items);
+            const numbers = subsectionNumbers(groups, sIdx + 1);
 
             return (
               <Card key={sectionName}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <span className="text-xs font-bold text-primary">{sIdx + 1}</span>
+                    </div>
                     <h3 className="text-base font-bold text-navy">{sectionName}</h3>
                     <span className="text-xs text-outline">{sectionAnswered}/{items.length} itens</span>
                     {allAnswered && <span className="material-symbols-outlined text-tertiary text-[18px] filled">check_circle</span>}
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl border transition-all",
-                        answers[item.id] === "non_conform" && "border-error/30 bg-error-container/5",
-                        answers[item.id] === "conform" && "border-tertiary/20 bg-tertiary-fixed/5",
-                        !answers[item.id] && "border-outline-variant/10 bg-surface-container-lowest"
+                <div className="space-y-5">
+                  {groups.map((group) => (
+                    <div key={group.key} className="space-y-3">
+                      {group.name !== null && (
+                        <h4 className="text-sm font-bold text-navy">
+                          <span className="text-primary mr-2">{numbers[group.key]}</span>{group.name}
+                        </h4>
                       )}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-on-surface">{item.question}</p>
-                          {item.required_evidence && (
-                            <span className={cn("inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full", photos[item.id] ? "bg-tertiary-fixed/20 text-tertiary" : "bg-amber-100 text-amber-700")}>
-                              <span className="material-symbols-outlined text-[12px]">photo_camera</span>
-                              {photos[item.id] ? "OK" : "Obrigatória"}
-                            </span>
-                          )}
-                        </div>
-                        {observations[item.id] && (
-                          <p className="text-xs italic text-error mt-2 border-l-2 border-error pl-2">{observations[item.id]}</p>
-                        )}
-                        {desktopObsId === item.id && (
-                          <div className="mt-2 flex gap-2">
-                            <input
-                              type="text" value={desktopObsText}
-                              onChange={(e) => setDesktopObsText(e.target.value)}
-                              placeholder="Adicionar observação..."
-                              className="flex-1 bg-surface-container-low rounded-lg px-3 py-1.5 text-xs text-on-surface border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20"
-                              onKeyDown={(e) => { if (e.key === "Enter" && desktopObsText.trim()) { setObservations((p) => ({ ...p, [item.id]: desktopObsText })); setDesktopObsId(null); setDesktopObsText(""); } }}
-                            />
-                            <button onClick={() => { if (desktopObsText.trim()) setObservations((p) => ({ ...p, [item.id]: desktopObsText })); setDesktopObsId(null); setDesktopObsText(""); }} className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 rounded-lg cursor-pointer">Salvar</button>
+                      {group.items.map((item) => {
+                        const current = answers[item.id];
+                        const responseType = item.response_type || "conform";
+                        const itemPhotos = photos[item.id] || [];
+                        return (
+                          <div
+                            key={item.id}
+                            className={cn(
+                              "flex flex-col gap-3 p-4 rounded-xl border transition-all",
+                              current?.answer === "non_conform" && "border-error/30 bg-error-container/5",
+                              (current?.answer === "conform" || current?.answer === "scale") && "border-tertiary/20 bg-tertiary-fixed/5",
+                              !current && "border-outline-variant/10 bg-surface-container-lowest"
+                            )}
+                          >
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium text-on-surface"><RichText text={item.question} /></p>
+                                {item.required_evidence && (
+                                  <span className={cn("inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full", itemPhotos.length > 0 ? "bg-tertiary-fixed/20 text-tertiary" : "bg-amber-100 text-amber-700")}>
+                                    <span className="material-symbols-outlined text-[12px]">photo_camera</span>
+                                    {itemPhotos.length > 0 ? "OK" : "Obrigatória"}
+                                  </span>
+                                )}
+                              </div>
+                              {item.help && <p className="text-xs text-on-surface-variant mt-1"><RichText text={item.help} /></p>}
+                              {observations[item.id] && (
+                                <p className="text-xs italic text-error mt-2 border-l-2 border-error pl-2">{observations[item.id]}</p>
+                              )}
+                              {desktopObsId === item.id && (
+                                <div className="mt-2 flex gap-2">
+                                  <input
+                                    type="text" value={desktopObsText}
+                                    onChange={(e) => setDesktopObsText(e.target.value)}
+                                    placeholder="Adicionar observação..."
+                                    className="flex-1 bg-surface-container-low rounded-lg px-3 py-1.5 text-xs text-on-surface border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20"
+                                    onKeyDown={(e) => { if (e.key === "Enter" && desktopObsText.trim()) { setObservations((p) => ({ ...p, [item.id]: desktopObsText })); setDesktopObsId(null); setDesktopObsText(""); } }}
+                                  />
+                                  <button onClick={() => { if (desktopObsText.trim()) setObservations((p) => ({ ...p, [item.id]: desktopObsText })); setDesktopObsId(null); setDesktopObsText(""); }} className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 rounded-lg cursor-pointer">Salvar</button>
+                                </div>
+                              )}
+                            </div>
+
+                            {itemPhotos.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {itemPhotos.map((url) => (
+                                  <div key={url} className="relative">
+                                    <img src={url} alt="Evidência" className="w-14 h-14 rounded-lg object-cover border border-outline-variant/20" />
+                                    <button onClick={() => removePhoto(item.id, url)} aria-label="Remover foto" className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center cursor-pointer">
+                                      <span className="material-symbols-outlined text-[12px]">close</span>
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button onClick={() => handlePhotoClick(item.id)} disabled={uploading} aria-label="Adicionar foto" className={cn("p-2 rounded-lg transition-colors cursor-pointer", itemPhotos.length > 0 ? "bg-tertiary-fixed/10 text-tertiary" : "hover:bg-surface-container-low text-outline")}>
+                                <span className={cn("material-symbols-outlined text-[18px]", uploading && "animate-spin")}>{uploading ? "progress_activity" : "add_a_photo"}</span>
+                              </button>
+                              <button onClick={() => { setDesktopObsId(desktopObsId === item.id ? null : item.id); setDesktopObsText(observations[item.id] || ""); }} aria-label="Observação" className={cn("p-2 rounded-lg transition-colors cursor-pointer", observations[item.id] ? "bg-primary/10 text-primary" : "hover:bg-surface-container-low text-outline")}>
+                                <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
+                              </button>
+
+                              {responseType === "conform" && (
+                                <>
+                                  <button onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: "conform" } }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "conform" ? "bg-tertiary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-tertiary/10 hover:text-tertiary")}>
+                                    Conforme
+                                  </button>
+                                  <button onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: "non_conform" } }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "non_conform" ? "bg-error text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-error/10 hover:text-error")}>
+                                    Não Conforme
+                                  </button>
+                                </>
+                              )}
+
+                              {responseType === "multiple_choice" && (item.options || []).map((option) => (
+                                <button key={option.label} onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: option.conform ? "conform" : "non_conform", value: option.label } }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.value === option.label ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
+                                  {option.label}
+                                </button>
+                              ))}
+
+                              {responseType === "scale" && scaleValues(item.scale || defaultScale).map((value) => (
+                                <button key={value} onClick={() => setAnswers((p) => ({ ...p, [item.id]: { answer: "scale", value } }))} className={cn("min-w-9 h-9 px-2 rounded-lg text-sm font-bold transition-all cursor-pointer", current?.value === value ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
+                                  {value}
+                                </button>
+                              ))}
+
+                              {current?.answer === "non_conform" && (
+                                taskGenerated[item.id] ? (
+                                  <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-tertiary-fixed/20 text-tertiary flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[14px] filled">check_circle</span>TAREFA GERADA
+                                  </span>
+                                ) : (
+                                  <button onClick={() => setTaskGenerated((p) => ({ ...p, [item.id]: true }))} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-container transition-all flex items-center gap-1 cursor-pointer">
+                                    <span className="material-symbols-outlined text-[14px]">bolt</span>GERAR TAREFA
+                                  </button>
+                                )
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button onClick={() => handlePhotoClick(item.id)} className={cn("p-2 rounded-lg transition-colors cursor-pointer", photos[item.id] ? "bg-tertiary-fixed/10 text-tertiary" : "hover:bg-surface-container-low text-outline")}>
-                          <span className="material-symbols-outlined text-[18px]">{photos[item.id] ? "check_circle" : "photo_camera"}</span>
-                        </button>
-                        {photos[item.id] && (
-                          <img src={photos[item.id]} alt="Evidência" className="w-9 h-9 rounded-lg object-cover border border-outline-variant/20" />
-                        )}
-                        <button onClick={() => { setDesktopObsId(desktopObsId === item.id ? null : item.id); setDesktopObsText(observations[item.id] || ""); }} className={cn("p-2 rounded-lg transition-colors cursor-pointer", observations[item.id] ? "bg-primary/10 text-primary" : "hover:bg-surface-container-low text-outline")}>
-                          <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
-                        </button>
-                        <button onClick={() => setAnswers((p) => ({ ...p, [item.id]: "conform" }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", answers[item.id] === "conform" ? "bg-tertiary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-tertiary/10 hover:text-tertiary")}>
-                          Conforme
-                        </button>
-                        <button onClick={() => setAnswers((p) => ({ ...p, [item.id]: "non_conform" }))} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", answers[item.id] === "non_conform" ? "bg-error text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-error/10 hover:text-error")}>
-                          Não Conforme
-                        </button>
-                        {answers[item.id] === "non_conform" && (
-                          taskGenerated[item.id] ? (
-                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-tertiary-fixed/20 text-tertiary flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px] filled">check_circle</span>TAREFA GERADA
-                            </span>
-                          ) : (
-                            <button onClick={() => setTaskGenerated((p) => ({ ...p, [item.id]: true }))} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-container transition-all flex items-center gap-1 cursor-pointer">
-                              <span className="material-symbols-outlined text-[14px]">bolt</span>GERAR TAREFA
-                            </button>
-                          )
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>

@@ -11,8 +11,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
-  const [signupName, setSignupName] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,38 +30,6 @@ export default function LoginPage() {
     }
     router.push("/");
     router.refresh();
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: signupName || email.split("@")[0] },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
-
-    const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-    if (!loginError) {
-      router.push("/");
-      router.refresh();
-    } else {
-      setShowSignup(false);
-      setResetSent(true);
-      setTimeout(() => setResetSent(false), 5000);
-    }
-    setLoading(false);
   };
 
   const handleForgotPassword = async () => {
@@ -127,45 +93,6 @@ export default function LoginPage() {
               <button onClick={() => { setShowForgotPassword(false); setError(""); }} className="w-full text-sm text-primary font-semibold hover:underline cursor-pointer text-center">Voltar ao login</button>
             </div>
 
-          ) : showSignup ? (
-            <div className="space-y-5">
-              <h2 className="text-xl font-bold text-navy mb-1">Criar Conta</h2>
-              <p className="text-sm text-on-surface-variant mb-4">Preencha os dados para acessar o sistema</p>
-              <form className="space-y-5" onSubmit={handleSignup}>
-                <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-2">Nome completo</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">person</span>
-                    <input type="text" value={signupName} onChange={(e) => setSignupName(e.target.value)} placeholder="Seu nome"
-                      className="w-full bg-surface-container-low rounded-xl px-4 py-3 pl-11 text-sm text-on-surface placeholder:text-outline border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-2">Email</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">mail</span>
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@empresa.com" required
-                      className="w-full bg-surface-container-low rounded-xl px-4 py-3 pl-11 text-sm text-on-surface placeholder:text-outline border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-on-surface mb-2">Senha</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">lock</span>
-                    <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required
-                      className="w-full bg-surface-container-low rounded-xl px-4 py-3 pl-11 pr-11 text-sm text-on-surface placeholder:text-outline border border-outline-variant/20 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors cursor-pointer">
-                      <span className="material-symbols-outlined text-[20px]">{showPassword ? "visibility_off" : "visibility"}</span>
-                    </button>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full py-3 text-base" disabled={loading}>
-                  {loading ? "Criando conta..." : "Criar Conta"}
-                </Button>
-              </form>
-              <button onClick={() => { setShowSignup(false); setError(""); }} className="w-full text-sm text-primary font-semibold hover:underline cursor-pointer text-center">Já tenho conta — Entrar</button>
-            </div>
-
           ) : (
             <>
               <h2 className="text-xl font-bold text-navy mb-1">Bem-vindo de volta</h2>
@@ -199,15 +126,6 @@ export default function LoginPage() {
               </form>
             </>
           )}
-        </div>
-
-        <div className="text-center mt-8">
-          <p className="text-sm text-on-surface-variant">
-            {showSignup ? "Já tem conta? " : "Não possui conta? "}
-            <button onClick={() => { setShowSignup(!showSignup); setShowForgotPassword(false); setError(""); }} className="text-primary font-semibold hover:underline cursor-pointer">
-              {showSignup ? "Fazer login" : "Criar conta"}
-            </button>
-          </p>
         </div>
 
         <div className="flex items-center justify-center gap-6 mt-6">

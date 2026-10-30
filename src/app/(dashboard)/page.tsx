@@ -40,7 +40,7 @@ export default function DashboardPage() {
         supabase.from("checklist_executions").select(`
           id, score, status, started_at,
           checklist_templates(name),
-          profiles(full_name)
+          profiles!checklist_executions_operator_id_fkey(full_name)
         `).order("started_at", { ascending: false }).limit(5),
         supabase.from("tasks").select("id, status"),
         supabase.from("checklist_executions").select("id", { count: "exact", head: true }).in("status", ["completed"]),

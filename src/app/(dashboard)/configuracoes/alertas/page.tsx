@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useAuth, isStaff } from "@/hooks/useAuth";
 
 interface AlertEvent {
   id: string;
@@ -24,6 +26,13 @@ const eventLabels: Record<string, { name: string; icon: string }> = {
 };
 
 export default function AlertasConfigPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && !isStaff(user)) router.push("/");
+  }, [user, router]);
+
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);

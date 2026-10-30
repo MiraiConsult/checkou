@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isStaff } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
@@ -13,8 +13,9 @@ const navItems = [
   { icon: "assignment_turned_in", label: "Aprovações", href: "/aprovacoes" },
   { icon: "analytics", label: "Relatórios", href: "/relatorios" },
   { icon: "history", label: "Histórico", href: "/historico" },
-  { icon: "notifications", label: "Alertas", href: "/configuracoes/alertas" },
-  { icon: "settings", label: "Configurações", href: "/configuracoes" },
+  { icon: "notifications", label: "Alertas", href: "/configuracoes/alertas", staffOnly: true },
+  { icon: "settings", label: "Configurações", href: "/configuracoes", staffOnly: true },
+  { icon: "admin_panel_settings", label: "Admin", href: "/admin", staffOnly: true },
 ];
 
 export function SideNavBar() {
@@ -40,6 +41,7 @@ export function SideNavBar() {
   }, []);
 
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const items = navItems.filter((item) => !item.staffOnly || isStaff(user));
   const roleLabel = user?.role === "master" ? "Master" : user?.role === "admin" ? "Admin de Grupo" : "Operador";
 
   return (
@@ -60,8 +62,8 @@ export function SideNavBar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 mt-2 space-y-1">
         <p className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Menu Principal</p>
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        {items.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href) && !items.some((other) => other.href !== item.href && other.href.startsWith(item.href) && pathname.startsWith(other.href)));
           return (
             <Link
               key={item.href}
@@ -91,10 +93,12 @@ export function SideNavBar() {
       <div className="px-3 pb-4 relative">
         {showUserMenu && (
           <div className="absolute bottom-16 left-3 right-3 bg-slate-800 rounded-xl shadow-xl border border-slate-700 py-1 z-10">
-            <Link href="/configuracoes/alertas" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer">
-              <span className="material-symbols-outlined text-[16px]">settings</span>
-              Configurações
-            </Link>
+            {isStaff(user) && (
+              <Link href="/configuracoes/alertas" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer">
+                <span className="material-symbols-outlined text-[16px]">settings</span>
+                Configurações
+              </Link>
+            )}
             <button onClick={() => { setShowUserMenu(false); logout(); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[16px]">logout</span>
               Sair
