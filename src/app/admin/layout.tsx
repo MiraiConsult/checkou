@@ -53,6 +53,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="material-symbols-outlined text-[20px]">fact_check</span>
           Abrir o sistema
         </Link>
+        <Link href="/tutoriais" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-400 hover:text-white hover:bg-ink-2 transition-all">
+          <span className="material-symbols-outlined text-[20px]">help</span>
+          Tutoriais
+        </Link>
         <ThemeToggle className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-400 hover:text-white hover:bg-ink-2 transition-all cursor-pointer" />
       </nav>
       <div className="p-3.5">

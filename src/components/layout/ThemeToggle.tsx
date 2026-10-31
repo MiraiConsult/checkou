@@ -7,10 +7,11 @@ export function ThemeToggle({ className }: { className?: string }) {
       localStorage.setItem("checkou-theme", dark ? "dark" : "light");
     } catch { /* tema só desta visita */ }
   };
+  // O display do ícone vence as utilitárias do Tailwind, então quem esconde é o span de fora
   return (
     <button onClick={toggle} aria-label="Trocar tema" className={className}>
-      <span className="material-symbols-outlined text-[20px] dark:hidden">dark_mode</span>
-      <span className="material-symbols-outlined text-[20px] hidden dark:inline">light_mode</span>
+      <span className="flex dark:hidden"><span className="material-symbols-outlined text-[20px]">dark_mode</span></span>
+      <span className="hidden dark:flex"><span className="material-symbols-outlined text-[20px]">light_mode</span></span>
     </button>
   );
 }

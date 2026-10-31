@@ -1,6 +1,5 @@
 "use client";
 
-import { SearchInput } from "@/components/ui/SearchInput";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth, isStaff } from "@/hooks/useAuth";
@@ -39,15 +38,13 @@ export function TopNavBar() {
 
       {/* Right actions */}
       <div className="flex items-center gap-3">
-        <SearchInput placeholder="Buscar..." className="w-56" />
-
         {isStaff(user) && (
           <Link href="/configuracoes/alertas" className="relative p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
             <span className="material-symbols-outlined text-on-surface-variant text-[22px]">notifications</span>
           </Link>
         )}
 
-        <Link href="/relatorios" className="p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
+        <Link href="/tutoriais" aria-label="Central de tutoriais" title="Central de tutoriais" className="p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
           <span className="material-symbols-outlined text-on-surface-variant text-[22px]">help</span>
         </Link>
 

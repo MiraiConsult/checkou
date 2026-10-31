@@ -149,13 +149,13 @@ export default function DashboardPage() {
                   <p className="text-xs text-on-surface-variant">Inicie uma verificação em campo</p>
                 </div>
               </Link>
-              <Link href="/configuracoes" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+              <Link href="/admin" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
                 <div className="w-10 h-10 rounded-xl bg-secondary-container flex items-center justify-center">
                   <span className="material-symbols-outlined text-secondary text-[20px]">settings</span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-navy">Configurar restaurante</p>
-                  <p className="text-xs text-on-surface-variant">Cadastre unidades e usuários</p>
+                  <p className="text-sm font-bold text-navy">Cadastrar clientes</p>
+                  <p className="text-xs text-on-surface-variant">Crie empresas e usuários no Admin</p>
                 </div>
               </Link>
             </div>
