@@ -1,43 +1,79 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-primary: #007EF9;
-  --color-primary-container: #0072e3;
-  --color-navy: #101828;
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --color-surface: #f8f9fa;
-  --color-surface-container: #edeeef;
-  --color-surface-container-low: #f3f4f5;
-  --color-surface-container-high: #e7e8e9;
-  --color-surface-container-highest: #e1e3e4;
+/* Azul-elétrico por tela, trilho escuro e verde-limão reservado para o que deu certo */
+@theme {
+  --color-primary: #1467ff;
+  --color-primary-container: #0f56d9;
+  --color-navy: #0b1630;
+  --color-ink: #0b1630;
+  --color-ink-2: #16264a;
+  --color-lime: #c6f135;
+  --color-on-lime: #16230a;
+
+  --color-surface: #eef2fb;
+  --color-surface-container: #e6ecf8;
+  --color-surface-container-low: #f1f4fb;
+  --color-surface-container-high: #dbe3f2;
+  --color-surface-container-highest: #cfd9ec;
   --color-surface-container-lowest: #ffffff;
 
-  --color-on-surface: #191c1d;
-  --color-on-surface-variant: #414754;
-  --color-outline: #717786;
-  --color-outline-variant: #c1c6d6;
+  --color-on-surface: #0b1630;
+  --color-on-surface-variant: #46546f;
+  --color-outline: #76839e;
+  --color-outline-variant: #cfd9ec;
 
-  --color-tertiary: #006a3a;
-  --color-tertiary-container: #00864b;
-  --color-tertiary-fixed: #70fda7;
+  --color-tertiary: #2f7d00;
+  --color-tertiary-container: #3f9a0a;
+  --color-tertiary-fixed: #c6f135;
 
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
+  --color-error: #e5362c;
+  --color-error-container: #ffe1de;
 
-  --color-secondary: #565e71;
-  --color-secondary-container: #dbe2f9;
+  --color-secondary: #5d6b88;
+  --color-secondary-container: #dfe7f7;
 
   --color-on-primary: #ffffff;
-  --color-on-tertiary-fixed: #00210e;
+  --color-on-tertiary-fixed: #16230a;
 
-  --font-sans: "Inter", sans-serif;
+  --font-sans: "Manrope", "Avenir Next", system-ui, sans-serif;
+  --font-display: "Sora", "Avenir Next", system-ui, sans-serif;
 
-  --radius-DEFAULT: 0.125rem;
-  --radius-lg: 0.25rem;
-  --radius-xl: 0.5rem;
-  --radius-full: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-3xl: 1.5rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  --shadow-card: 0 18px 40px -24px rgb(11 22 48 / 0.3);
+}
+
+@media screen {
+  .dark {
+    --color-navy: #eef3ff;
+    --color-surface: #070e20;
+    --color-surface-container: #1a2747;
+    --color-surface-container-low: #16213d;
+    --color-surface-container-high: #24335a;
+    --color-surface-container-highest: #2e3f6b;
+    --color-surface-container-lowest: #111c36;
+    --color-on-surface: #eef3ff;
+    --color-on-surface-variant: #a9b7d4;
+    --color-outline: #8392b3;
+    --color-outline-variant: #24335a;
+    --color-tertiary: #c6f135;
+    --color-tertiary-container: #9fce1f;
+    --color-error: #ff8d85;
+    --color-error-container: #4a1c20;
+    --color-secondary: #a9b7d4;
+    --color-secondary-container: #24335a;
+    --shadow-card: 0 18px 40px -24px rgb(0 0 0 / 0.7);
+    color-scheme: dark;
+  }
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
 }
 
 /* Material Symbols */
@@ -74,12 +110,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c6d6;
+  background: var(--color-outline-variant);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #717786;
+  background: var(--color-outline);
 }
 
 /* Toggle switch */
@@ -87,14 +123,14 @@
   position: relative;
   width: 44px;
   height: 24px;
-  background: #e1e3e4;
+  background: var(--color-surface-container-high);
   border-radius: 12px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .toggle-switch.active {
-  background: #007EF9;
+  background: var(--color-primary);
 }
 
 .toggle-switch::before {
@@ -115,9 +151,15 @@
 }
 
 body {
-  background: #f8f9fa;
-  color: #191c1d;
-  font-family: "Inter", sans-serif;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
 
 @media print {

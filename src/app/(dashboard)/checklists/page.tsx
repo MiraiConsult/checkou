@@ -109,7 +109,7 @@ export default function ChecklistsPage() {
 
   const iconColors: Record<string, string> = {
     restaurant: "bg-orange-50 text-orange-600",
-    cleaning_services: "bg-blue-50 text-blue-600",
+    cleaning_services: "bg-primary/10 text-primary",
     security: "bg-purple-50 text-purple-600",
     thermostat: "bg-red-50 text-red-600",
     inventory_2: "bg-green-50 text-green-600",

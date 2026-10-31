@@ -336,7 +336,7 @@ export default function ExecuteChecklistPage() {
             </div>
           </Card>
 
-          <div className="md:col-span-4 bg-navy rounded-xl p-6 text-white flex flex-col justify-between">
+          <div className="md:col-span-4 bg-ink rounded-xl p-6 text-white flex flex-col justify-between">
             <div>
               <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Itens respondidos</p>
               <p className="text-3xl font-black mt-2">{totalAnswered}/{questions.length}</p>
@@ -394,10 +394,10 @@ export default function ExecuteChecklistPage() {
                           <div
                             key={item.id}
                             className={cn(
-                              "flex flex-col gap-3 p-4 rounded-xl border transition-all",
-                              current?.answer === "non_conform" && "border-error/30 bg-error-container/5",
-                              (current?.answer === "conform" || current?.answer === "scale") && "border-tertiary/20 bg-tertiary-fixed/5",
-                              !current && "border-outline-variant/10 bg-surface-container-lowest"
+                              "flex flex-col gap-3 p-4 rounded-2xl border-l-[6px] bg-surface-container-low transition-all",
+                              current?.answer === "non_conform" && "border-l-error",
+                              (current?.answer === "conform" || current?.answer === "scale") && "border-l-lime",
+                              !current && "border-l-surface-container-high"
                             )}
                           >
                             <div>
@@ -450,24 +450,26 @@ export default function ExecuteChecklistPage() {
                               </button>
 
                               {responseType === "conform" && (
-                                <>
-                                  <button onClick={() => answerItem(item.id, { answer: "conform" })} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "conform" ? "bg-tertiary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-tertiary/10 hover:text-tertiary")}>
+                                <div className="basis-full grid grid-cols-2 gap-2.5 order-first">
+                                  <button onClick={() => answerItem(item.id, { answer: "conform" })} className={cn("flex items-center justify-center gap-1.5 py-3.5 rounded-2xl text-sm font-extrabold active:scale-95 transition-all cursor-pointer", current?.answer === "conform" ? "bg-lime text-on-lime" : "bg-surface-container-high text-on-surface")}>
+                                    <span className="material-symbols-outlined text-[18px]">check</span>
                                     Conforme
                                   </button>
-                                  <button onClick={() => answerItem(item.id, { answer: "non_conform" })} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.answer === "non_conform" ? "bg-error text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-error/10 hover:text-error")}>
-                                    Não Conforme
+                                  <button onClick={() => answerItem(item.id, { answer: "non_conform" })} className={cn("flex items-center justify-center gap-1.5 py-3.5 rounded-2xl text-sm font-extrabold active:scale-95 transition-all cursor-pointer", current?.answer === "non_conform" ? "bg-error text-white" : "bg-surface-container-high text-on-surface")}>
+                                    <span className="material-symbols-outlined text-[18px]">close</span>
+                                    Não conforme
                                   </button>
-                                </>
+                                </div>
                               )}
 
                               {responseType === "multiple_choice" && (item.options || []).map((option) => (
-                                <button key={option.label} onClick={() => answerItem(item.id, { answer: option.conform ? "conform" : "non_conform", value: option.label })} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer", current?.value === option.label ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
+                                <button key={option.label} onClick={() => answerItem(item.id, { answer: option.conform ? "conform" : "non_conform", value: option.label })} className={cn("px-4 py-2.5 rounded-2xl text-sm font-bold transition-all cursor-pointer", current?.value === option.label ? "bg-lime text-on-lime" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
                                   {option.label}
                                 </button>
                               ))}
 
                               {responseType === "scale" && scaleValues(item.scale || defaultScale).map((value) => (
-                                <button key={value} onClick={() => answerItem(item.id, { answer: "scale", value })} className={cn("min-w-9 h-9 px-2 rounded-lg text-sm font-bold transition-all cursor-pointer", current?.value === value ? "bg-primary text-white" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
+                                <button key={value} onClick={() => answerItem(item.id, { answer: "scale", value })} className={cn("min-w-11 h-11 px-2 rounded-2xl text-sm font-bold transition-all cursor-pointer", current?.value === value ? "bg-lime text-on-lime" : "bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary")}>
                                   {value}
                                 </button>
                               ))}

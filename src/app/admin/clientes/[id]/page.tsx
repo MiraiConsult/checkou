@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { UnitLocation } from "@/components/admin/UnitLocation";
 import { UsersPanel } from "@/components/admin/UsersPanel";
+import { AccessLink } from "@/components/admin/AccessLink";
+import { PageHero } from "@/components/ui/PageHero";
 import { useAuth, isStaff } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
@@ -116,6 +118,7 @@ export default function AdminClientDetailPage() {
 
   const members = users.filter((u) => u.unit_id === unitId);
   const linked = templates.filter((t) => t.unit_ids.includes(unitId));
+  const average = executions.length ? Math.round(executions.reduce((sum, e) => sum + Number(e.score), 0) / executions.length) : null;
   const tabs = staff
     ? [
         { id: "conta", label: "Conta" },
@@ -128,20 +131,15 @@ export default function AdminClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        {staff && (
-          <Link href="/admin" aria-label="Voltar" className="p-2.5 rounded-xl hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">arrow_back</span>
-          </Link>
-        )}
-        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg font-bold shrink-0">
-          {unit.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold text-navy truncate">{unit.name}</h2>
-          {unit.location && <p className="text-sm text-on-surface-variant truncate">{unit.location}</p>}
-        </div>
-      </div>
+      {staff && (
+        <Link href="/admin" className="inline-flex items-center gap-1 text-sm font-bold text-on-surface-variant hover:text-navy">
+          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          Clientes
+        </Link>
+      )}
+      <PageHero title={unit.name} subtitle={unit.location || `${members.length} ${members.length === 1 ? "usuário" : "usuários"} e ${linked.length} ${linked.length === 1 ? "checklist" : "checklists"}`} score={average} label="score médio">
+        {staff && <AccessLink unitId={unit.id} unitName={unit.name} label="Acessar a conta" className="inline-flex items-center justify-center gap-2 rounded-full bg-lime text-on-lime px-6 py-3 text-sm font-bold" />}
+      </PageHero>
 
       {error && (
         <div className="py-3 px-4 bg-error/10 text-error rounded-xl flex items-center gap-2 font-semibold text-sm">
@@ -150,9 +148,9 @@ export default function AdminClientDetailPage() {
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-outline-variant/10 overflow-x-auto">
+      <div className="flex gap-1 bg-surface-container-lowest p-1.5 rounded-full w-fit max-w-full overflow-x-auto shadow-card">
         {tabs.map((item) => (
-          <button key={item.id} onClick={() => setTab(item.id)} className={cn("px-4 py-3 text-sm font-medium whitespace-nowrap transition-all cursor-pointer border-b-2 -mb-px", activeTab === item.id ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface")}>
+          <button key={item.id} onClick={() => setTab(item.id)} className={cn("px-4 py-2 text-sm font-bold whitespace-nowrap rounded-full transition-all cursor-pointer", activeTab === item.id ? "bg-ink text-white dark:bg-primary" : "text-on-surface-variant hover:text-on-surface")}>
             {item.label}
           </button>
         ))}
@@ -203,11 +201,11 @@ export default function AdminClientDetailPage() {
         executions.length === 0 ? (
           <Card className="text-center py-12"><p className="text-sm text-on-surface-variant">Nenhuma execução ainda</p></Card>
         ) : (
-          <div className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/10 divide-y divide-outline-variant/10">
+          <div className="space-y-2.5">
             {executions.map((execution) => {
               const status = statusLabel[execution.status] || statusLabel.completed;
               return (
-                <Link key={execution.id} href={`/historico/${execution.id}`} className="flex items-center gap-3 px-5 py-3.5 hover:bg-surface-container-low transition-colors">
+                <Link key={execution.id} href={`/historico/${execution.id}`} className="flex items-center gap-3 px-5 py-3.5 bg-surface-container-lowest rounded-2xl shadow-card hover:-translate-y-0.5 transition-transform">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-navy truncate">{templates.find((t) => t.id === execution.template_id)?.name || "Checklist"}</p>
                     <p className="text-xs text-on-surface-variant truncate">{members.find((u) => u.id === execution.operator_id)?.full_name || "—"} · {timeAgo(execution.completed_at || execution.started_at)}</p>

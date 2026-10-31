@@ -231,7 +231,7 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
           <div className="bg-surface-container-lowest rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <h3 className="text-lg font-bold text-navy mb-2">Acesso pronto</h3>
             <p className="text-sm text-on-surface-variant mb-4">Copie e envie para {credentials.name}. A senha não aparece de novo depois de fechar.</p>
-            <div className="bg-surface-container-low rounded-xl p-4 text-sm text-on-surface space-y-1 mb-4 break-all">
+            <div className="bg-surface-container-low rounded-2xl p-4 text-sm text-on-surface space-y-1 mb-4 break-all">
               <p>{credentials.email}</p>
               <p className="font-mono">{credentials.password}</p>
             </div>

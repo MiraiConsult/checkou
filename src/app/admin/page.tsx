@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { AccessLink } from "@/components/admin/AccessLink";
 import { useAuth, isStaff } from "@/hooks/useAuth";
-import { createClient } from "@/lib/supabase/client";
-import { fetchAdminData, inputClass, isRecent, labelClass, timeAgo, type AdminExecution, type AdminTemplate, type AdminUnit, type AdminUser } from "@/lib/admin";
+import { callAdmin, fetchAdminData, generatePassword, inputClass, isRecent, labelClass, timeAgo, type AdminExecution, type AdminTemplate, type AdminUnit, type AdminUser } from "@/lib/admin";
+
+const emptyDraft = { company_name: "", location: "", full_name: "", email: "", password: "", checklist_ids: [] as string[] };
 
 function situation(userCount: number, lastExecution: string | null) {
   if (userCount === 0) return { variant: "warning" as const, label: "Sem usuários" };
@@ -28,8 +30,10 @@ export default function AdminClientsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newLocation, setNewLocation] = useState("");
+  const [draft, setDraft] = useState(emptyDraft);
+  const [created, setCreated] = useState<(typeof emptyDraft & { unit_id: string }) | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [modalError, setModalError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -73,20 +77,38 @@ export default function AdminClientsPage() {
     { label: "Execuções em 7 dias", value: clientExecutions.filter((e) => isRecent(e.completed_at || e.started_at)).length, icon: "bolt", tone: "text-amber-500" },
   ];
 
-  const createClientUnit = async () => {
-    if (!user?.organization_id) return;
+  const refresh = () => {
+    fetchAdminData().then((data) => {
+      setUnits(data.units);
+      setUsers(data.users);
+      setTemplates(data.templates);
+      setExecutions(data.executions);
+    });
+  };
+
+  const createAccount = async () => {
     setSaving(true);
-    setError("");
-    const { data, error: insertError } = await createClient().from("units")
-      .insert({ organization_id: user.organization_id, name: newName.trim(), location: newLocation.trim() })
-      .select("id").single();
+    setModalError("");
+    const result = await callAdmin<{ unit_id: string }>({ action: "create_client", ...draft });
     setSaving(false);
-    if (insertError || !data) {
-      setError("Não foi possível criar o cliente.");
-      setCreating(false);
+    if (result.error || !result.data) {
+      setModalError(result.error || "Não foi possível criar a conta.");
       return;
     }
-    router.push(`/admin/clientes/${data.id}`);
+    setCreating(false);
+    setCopied(false);
+    setCreated({ ...draft, unit_id: result.data.unit_id });
+    refresh();
+  };
+
+  const copyAccess = async () => {
+    if (!created) return;
+    await navigator.clipboard.writeText(`Olá, ${created.full_name}! Seu acesso ao Checkou:\n\nLink: ${window.location.origin}\nEmail: ${created.email}\nSenha: ${created.password}`);
+    setCopied(true);
+  };
+
+  const toggleDraftChecklist = (id: string) => {
+    setDraft({ ...draft, checklist_ids: draft.checklist_ids.includes(id) ? draft.checklist_ids.filter((c) => c !== id) : [...draft.checklist_ids, id] });
   };
 
   if (!staff || loading) {
@@ -107,7 +129,7 @@ export default function AdminClientsPage() {
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">Situação, usuários, checklists e execuções de cada empresa</p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => { setNewName(""); setNewLocation(""); setCreating(true); }}>
+        <Button variant="primary" size="sm" onClick={() => { setDraft({ ...emptyDraft, password: generatePassword() }); setModalError(""); setCreating(true); }}>
           <span className="material-symbols-outlined text-[16px]">add</span>
           Novo cliente
         </Button>
@@ -121,13 +143,21 @@ export default function AdminClientsPage() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => (
+        {kpis.map((kpi, index) => index === 0 ? (
+          <div key={kpi.label} className="bg-ink text-white rounded-2xl p-6 shadow-card">
+            <span className="w-11 h-11 rounded-xl bg-lime text-on-lime flex items-center justify-center mb-3">
+              <span className="material-symbols-outlined text-[20px]">{kpi.icon}</span>
+            </span>
+            <p className="font-display text-3xl font-extrabold tabular-nums">{kpi.value}</p>
+            <p className="text-sm font-semibold text-slate-300">{kpi.label}</p>
+          </div>
+        ) : (
           <Card key={kpi.label}>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-on-surface-variant">{kpi.label}</p>
+            <span className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center mb-3">
               <span className={`material-symbols-outlined text-[20px] ${kpi.tone}`}>{kpi.icon}</span>
-            </div>
-            <p className="text-3xl font-bold text-navy tabular-nums">{kpi.value}</p>
+            </span>
+            <p className="font-display text-3xl font-extrabold text-navy tabular-nums">{kpi.value}</p>
+            <p className="text-sm font-semibold text-on-surface-variant">{kpi.label}</p>
           </Card>
         ))}
       </div>
@@ -137,8 +167,8 @@ export default function AdminClientsPage() {
       {filtered.length === 0 ? (
         <Card><p className="text-center text-sm text-on-surface-variant py-10">Nenhum cliente encontrado.</p></Card>
       ) : (
-        <div className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/10">
-          <div className="hidden md:grid grid-cols-[1.8fr_1fr_1fr_0.7fr_0.8fr_0.8fr_2rem] gap-3 px-5 py-3 text-xs font-bold text-on-surface-variant border-b border-outline-variant/10">
+        <div className="space-y-2.5">
+          <div className="hidden md:grid grid-cols-[1.8fr_1fr_1fr_0.7fr_0.8fr_0.8fr_6.5rem] gap-3 px-5 text-xs font-bold text-on-surface-variant">
             <span>Cliente</span>
             <span>Último acesso</span>
             <span>Última execução</span>
@@ -147,17 +177,17 @@ export default function AdminClientsPage() {
             <span className="text-right">Score médio</span>
             <span />
           </div>
-          <div className="divide-y divide-outline-variant/10">
+          <div className="space-y-2.5">
             {filtered.map((row) => {
               const status = situation(row.userCount, row.lastExecution);
               return (
-                <Link key={row.unit.id} href={`/admin/clientes/${row.unit.id}`} className="grid grid-cols-2 md:grid-cols-[1.8fr_1fr_1fr_0.7fr_0.8fr_0.8fr_2rem] gap-3 px-5 py-3.5 items-center hover:bg-surface-container-low transition-colors">
+                <div key={row.unit.id} className="relative grid grid-cols-2 md:grid-cols-[1.8fr_1fr_1fr_0.7fr_0.8fr_0.8fr_6.5rem] gap-3 px-5 py-3.5 items-center bg-surface-container-lowest rounded-2xl shadow-card hover:-translate-y-0.5 transition-transform">
                   <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm font-bold shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-sm font-bold shrink-0">
                       {row.unit.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm text-navy truncate">{row.unit.name}</p>
+                      <Link href={`/admin/clientes/${row.unit.id}`} className="block font-bold text-sm text-navy truncate after:absolute after:inset-0">{row.unit.name}</Link>
                       <Badge variant={status.variant} className="mt-0.5">{status.label}</Badge>
                     </div>
                   </div>
@@ -166,8 +196,8 @@ export default function AdminClientsPage() {
                   <span className="md:text-right text-sm text-navy tabular-nums"><span className="md:hidden text-xs text-outline">Usuários: </span>{row.userCount}</span>
                   <span className="md:text-right text-sm text-navy tabular-nums"><span className="md:hidden text-xs text-outline">Checklists: </span>{row.checklistCount}</span>
                   <span className="md:text-right text-sm text-navy tabular-nums"><span className="md:hidden text-xs text-outline">Score: </span>{row.average === null ? "—" : `${row.average}%`}</span>
-                  <span className="material-symbols-outlined text-outline text-[18px] hidden md:block">chevron_right</span>
-                </Link>
+                  <AccessLink unitId={row.unit.id} unitName={row.unit.name} className="relative z-10 col-span-2 md:col-span-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-primary text-white px-4 py-2 text-xs font-bold" />
+                </div>
               );
             })}
           </div>
@@ -177,22 +207,80 @@ export default function AdminClientsPage() {
       <p className="text-xs text-on-surface-variant">&quot;Último acesso&quot; é o login mais recente de qualquer usuário da empresa. &quot;Em uso&quot; significa pelo menos uma execução nos últimos 7 dias. Clique em uma linha para abrir o cliente.</p>
 
       {creating && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setCreating(false)}>
-          <div className="bg-surface-container-lowest rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-navy mb-5">Novo cliente</h3>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setCreating(false)}>
+          <div className="bg-surface-container-lowest rounded-3xl p-7 max-w-lg w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-2xl font-extrabold text-navy">Novo cliente</h3>
+            <p className="text-sm text-on-surface-variant mt-1 mb-5">Cria a empresa e o acesso do dono de uma vez.</p>
+            {modalError && <p className="text-sm text-error font-medium mb-4">{modalError}</p>}
             <div className="space-y-4">
               <div>
                 <label className={labelClass}>Nome da empresa *</label>
-                <input type="text" value={newName} autoFocus onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Dom Leonello Restaurante" className={inputClass} />
+                <input type="text" value={draft.company_name} autoFocus onChange={(e) => setDraft({ ...draft, company_name: e.target.value })} placeholder="Ex: Dom Leonello Restaurante" className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>Endereço</label>
-                <input type="text" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="Rua, número, bairro, cidade" className={inputClass} />
+                <input type="text" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} placeholder="Rua, número, bairro, cidade" className={inputClass} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Nome do dono *</label>
+                  <input type="text" value={draft.full_name} onChange={(e) => setDraft({ ...draft, full_name: e.target.value })} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Email de acesso *</label>
+                  <input type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} className={inputClass} />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Senha inicial *</label>
+                <div className="flex gap-2">
+                  <input type="text" value={draft.password} onChange={(e) => setDraft({ ...draft, password: e.target.value })} className={inputClass} />
+                  <Button variant="outline" onClick={() => setDraft({ ...draft, password: generatePassword() })}>Gerar</Button>
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Checklists desta empresa</label>
+                <div className="flex flex-wrap gap-2">
+                  {templates.filter((t) => t.status === "published").map((template) => {
+                    const linked = draft.checklist_ids.includes(template.id);
+                    return (
+                      <button key={template.id} type="button" onClick={() => toggleDraftChecklist(template.id)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-colors cursor-pointer ${linked ? "bg-primary text-white" : "bg-surface-container text-on-surface-variant"}`}>
+                        <span className="material-symbols-outlined text-[14px]">{linked ? "check" : "add"}</span>
+                        {template.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <Button variant="outline" onClick={() => setCreating(false)}>Cancelar</Button>
-              <Button variant="primary" onClick={createClientUnit} disabled={saving || !newName.trim()}>{saving ? "Criando..." : "Criar cliente"}</Button>
+              <Button variant="primary" onClick={createAccount} disabled={saving || !draft.company_name.trim() || !draft.full_name.trim() || !draft.email.trim() || draft.password.length < 6}>{saving ? "Criando..." : "Criar conta"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {created && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest rounded-3xl p-7 max-w-md w-full shadow-2xl">
+            <span className="w-14 h-14 rounded-2xl bg-lime text-on-lime flex items-center justify-center mb-4">
+              <span className="material-symbols-outlined text-[28px]">check</span>
+            </span>
+            <h3 className="text-2xl font-extrabold text-navy">Conta criada</h3>
+            <p className="text-sm text-on-surface-variant mt-1 mb-4">Copie e envie para {created.full_name}. A senha não aparece de novo depois de fechar.</p>
+            <div className="bg-ink text-white rounded-2xl p-4 text-sm space-y-1 mb-5 break-all">
+              <p className="font-bold">{created.company_name}</p>
+              <p>{created.email}</p>
+              <p className="font-mono text-lime">{created.password}</p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2.5">
+              <Button variant="outline" onClick={() => setCreated(null)}>Fechar</Button>
+              <Button variant="outline" onClick={copyAccess}>
+                <span className="material-symbols-outlined text-[16px]">{copied ? "check" : "content_copy"}</span>
+                {copied ? "Copiado" : "Copiar acesso"}
+              </Button>
+              <AccessLink unitId={created.unit_id} unitName={created.company_name} label="Acessar a conta" className="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-white px-6 py-3 text-sm font-bold" />
             </div>
           </div>
         </div>

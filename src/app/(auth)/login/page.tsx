@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
+import { Brand } from "@/components/layout/Brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,22 +50,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
-
-      <div className="w-full max-w-[440px] mx-auto px-6 relative z-10">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-xl shadow-primary/30">
-              <span className="material-symbols-outlined text-white text-[28px]">fact_check</span>
+    <div className="min-h-screen bg-surface grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4 p-3 md:p-4">
+      <section className="relative overflow-hidden bg-primary text-white rounded-3xl p-7 md:p-10 flex flex-col justify-between gap-8 lg:min-h-[calc(100vh-2rem)]">
+        <div aria-hidden className="absolute w-[30rem] h-[30rem] -right-32 -top-48 rounded-full bg-white/15" />
+        <Brand className="relative" />
+        <h1 className="relative text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.05] max-w-xl">Cada turno conferido, sem papel e sem dúvida.</h1>
+        <div className="relative hidden lg:flex flex-col gap-2.5 max-w-sm">
+          {[["check", "Forno limpo e apto para uso", "-rotate-2"], ["check", "20 massas separadas", "rotate-[1.5deg] translate-x-6"], ["location_on", "Feito no restaurante", "-rotate-1"]].map(([icon, text, tilt]) => (
+            <div key={text} className={`bg-white text-ink rounded-2xl px-4 py-3 flex items-center gap-2.5 font-bold shadow-xl ${tilt}`}>
+              <span className="w-7 h-7 rounded-lg bg-lime text-on-lime flex items-center justify-center">
+                <span className="material-symbols-outlined text-[16px]">{icon}</span>
+              </span>
+              {text}
             </div>
-            <h1 className="text-3xl font-extrabold text-navy tracking-tight">CHECKOU</h1>
-          </div>
-          <p className="text-sm text-on-surface-variant">Gestão operacional inteligente</p>
+          ))}
         </div>
+      </section>
 
-        <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-xl border border-outline-variant/10">
+      <div className="w-full max-w-[440px] mx-auto self-center py-6 px-2">
+        <div>
           {error && (
             <div className="mb-6 py-3 px-4 bg-error-container/20 text-error rounded-xl text-sm font-medium flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">error</span>
@@ -99,8 +103,8 @@ export default function LoginPage() {
 
           ) : (
             <>
-              <h2 className="text-xl font-bold text-navy mb-1">Bem-vindo de volta</h2>
-              <p className="text-sm text-on-surface-variant mb-8">Acesse sua conta para continuar</p>
+              <h2 className="text-3xl font-extrabold text-navy tracking-tight mb-1">Entrar</h2>
+              <p className="text-sm text-on-surface-variant mb-8">Use o acesso que você recebeu da equipe Checkou</p>
               <form className="space-y-5" onSubmit={handleLogin}>
                 <div>
                   <label className="block text-sm font-semibold text-on-surface mb-2">Email corporativo</label>

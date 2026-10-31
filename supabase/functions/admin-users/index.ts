@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-acessar",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 function json(obj: unknown, status = 200) {
@@ -100,6 +100,45 @@ Deno.serve(async (req: Request) => {
       }
       await log("user_created", data.user.id, `criou o usuário ${fullName}`);
       return json({ ok: true, id: data.user.id });
+    }
+
+    // Empresa e acesso do dono de uma vez
+    if (action === "create_client") {
+      if (ownUnit) return json({ error: "Acesso negado" }, 403);
+      const companyName = String(body.company_name ?? "").trim();
+      const location = String(body.location ?? "").trim();
+      const email = String(body.email ?? "").trim().toLowerCase();
+      const fullName = String(body.full_name ?? "").trim();
+      const password = String(body.password ?? "");
+      if (!companyName || !email || !fullName) return json({ error: "Informe empresa, dono e email." }, 400);
+      if (password.length < 6) return json({ error: "A senha precisa ter ao menos 6 caracteres." }, 400);
+
+      const { data: unit, error: unitError } = await admin.from("units")
+        .insert({ organization_id: caller.organization_id, name: companyName, location }).select("id").single();
+      if (unitError || !unit) return json({ error: "Não foi possível criar a empresa." }, 400);
+
+      const { error: pendingError } = await admin.from("pending_users").upsert({
+        email, organization_id: caller.organization_id, full_name: fullName, role: "admin", sector: "gerencia", unit_id: unit.id,
+      });
+      const { data: created, error: createError } = pendingError
+        ? { data: null, error: pendingError }
+        : await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
+      if (createError || !created?.user) {
+        await admin.from("pending_users").delete().eq("email", email);
+        await admin.from("units").delete().eq("id", unit.id);
+        const taken = /already|registered|exists/i.test(createError?.message ?? "");
+        return json({ error: taken ? "Já existe um usuário com este email." : "Não foi possível criar o acesso do dono." }, 400);
+      }
+
+      const checklistIds = Array.isArray(body.checklist_ids) ? body.checklist_ids.map(String) : [];
+      if (checklistIds.length > 0) {
+        const { data: templates } = await admin.from("checklist_templates").select("id, unit_ids")
+          .in("id", checklistIds).eq("organization_id", caller.organization_id);
+        await Promise.all((templates ?? []).map((t) => admin.from("checklist_templates")
+          .update({ unit_ids: [...t.unit_ids, unit.id] }).eq("id", t.id)));
+      }
+      await log("client_created", created.user.id, `criou o cliente ${companyName}`);
+      return json({ ok: true, unit_id: unit.id });
     }
 
     // As ações abaixo agem sobre um usuário existente da mesma organização

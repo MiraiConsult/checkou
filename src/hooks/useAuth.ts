@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
+import { accessedUnit } from "@/lib/impersonation";
 
 interface UserProfile {
   id: string;
@@ -11,6 +12,8 @@ interface UserProfile {
   organization_id: string;
   sector: string;
   unit_id: string | null;
+  // Preenchido quando a equipe Checkou está acessando a conta de uma empresa nesta aba
+  acting_name: string | null;
 }
 
 // Equipe Checkou: administra todas as empresas. Quem tem unit_id é usuário de um cliente.
@@ -51,6 +54,11 @@ export const useAuth = create<AuthState>((set) => ({
       .single();
 
     if (profile) {
+      const staffProfile = !profile.unit_id && (profile.role === "admin" || profile.role === "master");
+      const accessed = staffProfile ? accessedUnit() : null;
+      const { data: unit } = accessed
+        ? await supabase.from("units").select("id, name").eq("id", accessed).maybeSingle()
+        : { data: null };
       set({
         user: {
           id: profile.id,
@@ -60,7 +68,8 @@ export const useAuth = create<AuthState>((set) => ({
           avatar_url: profile.avatar_url,
           organization_id: profile.organization_id,
           sector: profile.sector || "geral",
-          unit_id: profile.unit_id,
+          unit_id: unit?.id ?? profile.unit_id,
+          acting_name: unit?.name ?? null,
         },
         loading: false,
       });

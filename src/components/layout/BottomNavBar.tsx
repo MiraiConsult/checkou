@@ -20,7 +20,7 @@ export function BottomNavBar() {
   const items = navItems.filter((item) => item.adminOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
 
   return (
-    <nav className="md:hidden print:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-40 px-2 py-2">
+    <nav className="md:hidden print:hidden fixed bottom-3 left-3 right-3 bg-ink rounded-3xl px-1.5 py-1.5 z-40">
       <div className="flex items-center justify-around">
         {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -29,16 +29,16 @@ export function BottomNavBar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 min-w-[52px] py-1 px-1 rounded-xl transition-all",
+                "flex flex-col items-center gap-0.5 min-w-[52px] py-1.5 px-1 rounded-2xl transition-all",
                 isActive
-                  ? "text-blue-600 font-bold bg-blue-50"
-                  : "text-slate-500"
+                  ? "bg-white text-ink font-bold"
+                  : "text-slate-400"
               )}
             >
               <span className={cn("material-symbols-outlined text-[22px]", isActive && "filled")}>
                 {item.icon}
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-wide">{item.label}</span>
+              <span className="text-[10px] font-bold">{item.label}</span>
             </Link>
           );
         })}

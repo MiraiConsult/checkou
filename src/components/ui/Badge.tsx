@@ -3,11 +3,11 @@ import { cn } from "@/lib/utils/cn";
 type BadgeVariant = "success" | "pending" | "error" | "info" | "warning" | "priority-high" | "priority-medium" | "priority-low";
 
 const variantStyles: Record<BadgeVariant, string> = {
-  success: "bg-tertiary-fixed text-on-tertiary-fixed",
-  pending: "bg-slate-100 text-slate-600",
-  error: "bg-red-100 text-red-700",
+  success: "bg-lime text-on-lime",
+  pending: "bg-surface-container text-on-surface-variant",
+  error: "bg-error-container text-error",
   info: "bg-primary/10 text-primary",
-  warning: "bg-amber-100 text-amber-700",
+  warning: "bg-amber-400/25 text-amber-700 dark:text-amber-300",
   "priority-high": "bg-error-container/30 text-error",
   "priority-medium": "bg-orange-50 text-orange-600",
   "priority-low": "bg-tertiary-fixed/20 text-tertiary",

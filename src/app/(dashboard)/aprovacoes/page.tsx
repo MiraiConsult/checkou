@@ -178,7 +178,7 @@ export default function AprovacoesPage() {
                       <p className="text-base font-bold text-navy">{exec.template_name}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                             <span className="text-[9px] font-bold text-primary">{initials}</span>
                           </div>
                           <span className="text-xs text-on-surface-variant">{exec.operator_name}</span>

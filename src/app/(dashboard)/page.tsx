@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { KPICard } from "@/components/ui/KPICard";
+import { PageHero } from "@/components/ui/PageHero";
+import { useAuth } from "@/hooks/useAuth";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { Button } from "@/components/ui/Button";
-import { FloatingActionButton } from "@/components/layout/FloatingActionButton";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -27,7 +28,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [showFilters, setShowFilters] = useState(false);
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -88,120 +89,39 @@ export default function DashboardPage() {
     );
   }
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const firstName = user?.name.split(" ")[0] || "";
   const hasExecutions = data!.executions.length > 0;
   const conformidade = hasExecutions
     ? Math.round(data!.executions.reduce((sum, e) => sum + e.score, 0) / data!.executions.length)
     : 0;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Dashboard de Gestão</p>
-          <h2 className="text-3xl font-extrabold text-navy tracking-tight">Visão Geral da Operação</h2>
-          <p className="text-sm text-on-surface-variant mt-1">Acompanhe os indicadores de conformidade em tempo real</p>
+    <div className="space-y-6">
+      <PageHero
+        title={`${greeting}, ${firstName}`}
+        subtitle={hasExecutions ? "Esta é a conformidade das últimas execuções." : "Nenhuma execução registrada ainda."}
+        score={hasExecutions ? conformidade : null}
+        label="conformidade"
+      >
+        <Link href="/checklists"><Button variant="lime">
+          <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+          Executar checklist
+        </Button></Link>
+        <Link href="/historico"><Button variant="outline">Ver histórico</Button></Link>
+      </PageHero>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-ink text-white rounded-2xl p-6 shadow-card">
+          <span className="w-11 h-11 rounded-xl bg-lime text-on-lime flex items-center justify-center">
+            <span className="material-symbols-outlined">fact_check</span>
+          </span>
+          <p className="font-display text-3xl font-extrabold mt-4 tabular-nums">{data!.templates}</p>
+          <p className="text-sm font-semibold text-slate-300">Checklists</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-surface-container-lowest px-4 py-2 rounded-xl border border-outline-variant/10 text-sm text-on-surface-variant">
-            <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-            {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-          </div>
-          <Button variant="primary" size="sm" onClick={() => setShowFilters(!showFilters)}>
-            <span className="material-symbols-outlined text-[18px]">filter_alt</span>
-            Filtros Avançados
-          </Button>
-        </div>
-      </div>
-
-      {showFilters && (
-        <Card>
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-              <select className="bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
-                <option>Todas as Unidades</option>
-              </select>
-              <select className="bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
-                <option>Últimos 7 dias</option>
-                <option>Últimos 30 dias</option>
-              </select>
-              <select className="bg-surface-container-low rounded-xl px-4 py-2.5 text-sm text-on-surface border border-outline-variant/10 outline-none focus:ring-2 focus:ring-primary/20">
-                <option>Todos os Status</option>
-              </select>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(false)}>
-              <span className="material-symbols-outlined text-[16px]">close</span>
-              Fechar
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Conformance Gauge */}
-        <Card className="md:col-span-4 flex flex-col items-center justify-center py-8">
-          <div className="relative">
-            <svg width="180" height="180" className="-rotate-90">
-              <circle cx="90" cy="90" r="78" fill="none" stroke="#e7e8e9" strokeWidth="12" />
-              <circle
-                cx="90" cy="90" r="78" fill="none" stroke="#007EF9" strokeWidth="12"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 78}
-                strokeDashoffset={2 * Math.PI * 78 * (1 - conformidade / 100)}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-4xl font-black text-navy">{conformidade}%</span>
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Conformidade</span>
-            </div>
-          </div>
-          <p className="text-xs text-on-surface-variant mt-4 text-center">
-            {hasExecutions ? "Taxa geral de conformidade" : "Nenhuma execução registrada ainda"}
-          </p>
-        </Card>
-
-        {/* KPI Cards */}
-        <div className="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <Card>
-            <div className="flex items-start justify-between">
-              <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary">fact_check</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-3xl font-black text-navy">{data!.templates}</p>
-              <p className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">Templates</p>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex items-start justify-between">
-              <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary">assignment</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-3xl font-black text-navy">{data!.tasks.total}</p>
-              <p className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">Tarefas</p>
-              {data!.tasks.pending > 0 && (
-                <p className="text-xs text-outline mt-1">{data!.tasks.pending} pendentes</p>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex items-start justify-between">
-              <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary">pending_actions</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="text-3xl font-black text-navy">{String(data!.approvals).padStart(2, "0")}</p>
-              <p className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">Execuções</p>
-            </div>
-          </Card>
-        </div>
+        <KPICard icon="assignment" label="Tarefas" value={data!.tasks.total} description={data!.tasks.pending > 0 ? `${data!.tasks.pending} pendentes` : undefined} />
+        <KPICard icon="pending_actions" label="Aguardando aprovação" value={data!.approvals} />
       </div>
 
       {/* Middle section */}
@@ -275,7 +195,7 @@ export default function DashboardPage() {
                         <td className="py-3 pr-4"><span className="text-sm font-medium text-on-surface">{exec.checklist}</span></td>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-[10px] font-bold text-primary">{exec.initials}</span>
                             </div>
                             <span className="text-sm text-on-surface-variant">{exec.operator}</span>
@@ -300,7 +220,6 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <FloatingActionButton onClick={() => router.push("/checklists/novo")} />
     </div>
   );
 }

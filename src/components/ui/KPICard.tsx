@@ -26,8 +26,8 @@ export function KPICard({ icon, label, value, trend, description, className }: K
         )}
       </div>
       <div className="mt-4">
-        <p className="text-3xl font-black text-navy">{value}</p>
-        <p className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant mt-1">{label}</p>
+        <p className="font-display text-3xl font-extrabold text-navy">{value}</p>
+        <p className="text-sm font-semibold text-on-surface-variant mt-1">{label}</p>
         {description && <p className="text-xs text-outline mt-1">{description}</p>}
       </div>
     </Card>

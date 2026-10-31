@@ -436,7 +436,7 @@ export default function ConfiguracoesPage() {
                       <span className="text-xs text-outline whitespace-nowrap">
                         {new Date(log.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </span>
-                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <span className="text-[9px] font-bold text-primary">{initials}</span>
                       </div>
                     </div>

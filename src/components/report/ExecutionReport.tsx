@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { ScoreRing } from "@/components/approvals/ScoreRing";
+import { PageHero } from "@/components/ui/PageHero";
 import { RichText } from "@/components/ui/RichText";
 import { cn } from "@/lib/utils/cn";
 import type { ChecklistResponse, ChecklistSection } from "@/lib/types/checklist";
@@ -57,27 +57,17 @@ export function ExecutionReport({ report, actions }: { report: ReportData; actio
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Resultado da Execução</p>
-          <h2 className="text-2xl font-extrabold text-navy tracking-tight">{report.template_name}</h2>
-          {report.unit_name && <p className="text-sm text-on-surface-variant mt-1">{report.unit_name}</p>}
-        </div>
+      <PageHero title={report.template_name} subtitle={report.unit_name || undefined} score={report.score} label="conformidade">
         <Badge variant={status.variant} className="text-sm px-3 py-1">{status.label}</Badge>
-      </div>
+      </PageHero>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 print:grid-cols-12 gap-6">
-        <Card className="md:col-span-4 print:col-span-4 flex flex-col items-center justify-center py-6">
-          <ScoreRing score={report.score} size={100} strokeWidth={8} />
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mt-3">Score de Conformidade</p>
-        </Card>
-
-        <Card className="md:col-span-4 print:col-span-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6">
+        <Card className="">
           <div className="space-y-3">
             <div>
               <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Operador</p>
               <div className="flex items-center gap-2 mt-1">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <span className="text-[10px] font-bold text-primary">{initials}</span>
                 </div>
                 <div>
@@ -119,7 +109,7 @@ export function ExecutionReport({ report, actions }: { report: ReportData; actio
           </div>
         </Card>
 
-        <Card className="md:col-span-4 print:col-span-4">
+        <Card className="">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-on-surface-variant">Conformes</span>
@@ -177,7 +167,7 @@ export function ExecutionReport({ report, actions }: { report: ReportData; actio
                         : resp.value ? String(resp.value) : isConform ? "Conforme" : "Não Conforme";
                       const evidence = responseEvidence(resp);
                       return (
-                        <div key={item.id} className={cn("flex items-start gap-3 p-4 rounded-xl border break-inside-avoid", isConform ? "border-tertiary/20 bg-tertiary-fixed/5" : "border-error/20 bg-error-container/5")}>
+                        <div key={item.id} className={cn("flex items-start gap-3 p-4 rounded-xl border-l-[6px] break-inside-avoid", isConform ? "border-l-lime bg-surface-container-low" : "border-l-error bg-surface-container-low")}>
                           <span className={cn("material-symbols-outlined text-[20px] mt-0.5 filled", isConform ? "text-tertiary" : "text-error")}>
                             {isScale ? "star" : isConform ? "check_circle" : "cancel"}
                           </span>

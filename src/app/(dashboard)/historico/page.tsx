@@ -109,7 +109,7 @@ export default function HistoricoPage() {
                       <p className="text-sm font-bold text-navy">{exec.template_name}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
                             <span className="text-[8px] font-bold text-primary">{initials}</span>
                           </div>
                           <span className="text-xs text-on-surface-variant">{exec.operator_name}</span>

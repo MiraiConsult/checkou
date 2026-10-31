@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth, isStaff } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 export function TopNavBar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -25,7 +26,7 @@ export function TopNavBar() {
   }, [user?.organization_id, user?.unit_id]);
 
   return (
-    <header className="hidden md:flex print:hidden items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 fixed top-0 left-64 right-0 z-30">
+    <header className="hidden md:flex print:hidden items-center justify-between h-16 px-6 bg-surface-container-lowest/85 backdrop-blur-xl rounded-full shadow-card fixed top-4 left-[17.5rem] right-4 md:right-6 z-30">
       {/* Org name */}
       <div className="flex items-center gap-3">
         {orgName && (
@@ -50,12 +51,12 @@ export function TopNavBar() {
           <span className="material-symbols-outlined text-on-surface-variant text-[22px]">help</span>
         </Link>
 
-        <div className="h-6 w-px bg-slate-200" />
+        <ThemeToggle className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer" />
 
         <div className="relative">
           <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-2 cursor-pointer">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-xs font-bold text-primary">{initials}</span>
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <span className="text-xs font-bold text-white">{initials}</span>
             </div>
           </button>
           {showUserMenu && (
