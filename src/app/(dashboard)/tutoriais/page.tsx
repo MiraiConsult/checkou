@@ -26,8 +26,9 @@ const groups: { title: string; items: Tutorial[] }[] = [
         steps: [
           "Abra o Admin e clique em Novo cliente.",
           "Preencha a empresa, o nome e o email do dono e escolha os checklists.",
-          "Clique em Criar conta. A senha já vem gerada.",
-          "Clique em Copiar acesso e cole no WhatsApp do dono.",
+          "Clique em Criar conta.",
+          "Clique em Copiar mensagem e cole no WhatsApp do dono.",
+          "Ele abre o link, cria a própria senha e já entra. O link vale 7 dias e uma vez.",
         ],
       },
       {
@@ -97,7 +98,8 @@ const groups: { title: string; items: Tutorial[] }[] = [
         steps: [
           "No Admin, abra a aba Usuários e clique em Criar Usuário.",
           "Administrador cuida da equipe da empresa. Operador só responde checklists.",
-          "Salve e clique em Copiar acesso para enviar o login à pessoa.",
+          "Salve e clique em Copiar mensagem para enviar o link de primeiro acesso à pessoa.",
+          "Se o link venceu ou a pessoa esqueceu a senha, clique no ícone de link na linha dela para gerar outro.",
           "Quem saiu da empresa deve ser desativado, para manter o histórico.",
         ],
       },

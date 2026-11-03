@@ -13,6 +13,14 @@ function json(obj: unknown, status = 200) {
 const ROLES = ["operator", "admin", "master"];
 const SECTORS = ["geral", "gerencia", "cozinha", "salao", "bar"];
 const BAN_FOREVER = "876000h";
+const INVITE_DAYS = 7;
+
+const randomHex = (bytes: number) => Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -54,6 +62,17 @@ Deno.serve(async (req: Request) => {
       return (data ?? []).map((t) => t.id);
     };
 
+    // Link de primeiro acesso: a pessoa escolhe a senha. Um novo link invalida o anterior.
+    const createInvite = async (userId: string) => {
+      const token = randomHex(32);
+      await admin.from("access_invites").delete().eq("user_id", userId).is("used_at", null);
+      const { error } = await admin.from("access_invites").insert({
+        token_hash: await sha256(token), user_id: userId, created_by: caller.id,
+        expires_at: new Date(Date.now() + INVITE_DAYS * 86400000).toISOString(),
+      });
+      return error ? null : token;
+    };
+
     if (action === "list") {
       let query = admin.from("profiles")
         .select("id, full_name, email, role, sector, unit_id, active, checklist_ids, created_at")
@@ -72,7 +91,8 @@ Deno.serve(async (req: Request) => {
     if (action === "create") {
       const email = String(body.email ?? "").trim().toLowerCase();
       const fullName = String(body.full_name ?? "").trim();
-      const password = String(body.password ?? "");
+      // Sem senha informada, a conta nasce com uma senha que ninguém sabe e a pessoa cria a dela pelo link
+      const password = String(body.password ?? "") || randomHex(24);
       const role = String(body.role ?? "operator");
       const sector = String(body.sector ?? "geral");
       const unitId = ownUnit ?? (body.unit_id ? String(body.unit_id) : null);
@@ -99,7 +119,7 @@ Deno.serve(async (req: Request) => {
         return json({ error: taken ? "Já existe um usuário com este email." : error?.message ?? "Falha ao criar usuário." }, 400);
       }
       await log("user_created", data.user.id, `criou o usuário ${fullName}`);
-      return json({ ok: true, id: data.user.id });
+      return json({ ok: true, id: data.user.id, invite_token: await createInvite(data.user.id) });
     }
 
     // Empresa e acesso do dono de uma vez
@@ -109,7 +129,7 @@ Deno.serve(async (req: Request) => {
       const location = String(body.location ?? "").trim();
       const email = String(body.email ?? "").trim().toLowerCase();
       const fullName = String(body.full_name ?? "").trim();
-      const password = String(body.password ?? "");
+      const password = String(body.password ?? "") || randomHex(24);
       if (!companyName || !email || !fullName) return json({ error: "Informe empresa, dono e email." }, 400);
       if (password.length < 6) return json({ error: "A senha precisa ter ao menos 6 caracteres." }, 400);
 
@@ -138,7 +158,7 @@ Deno.serve(async (req: Request) => {
           .update({ unit_ids: [...t.unit_ids, unit.id] }).eq("id", t.id)));
       }
       await log("client_created", created.user.id, `criou o cliente ${companyName}`);
-      return json({ ok: true, unit_id: unit.id });
+      return json({ ok: true, unit_id: unit.id, invite_token: await createInvite(created.user.id) });
     }
 
     // As ações abaixo agem sobre um usuário existente da mesma organização
@@ -171,6 +191,13 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: error.message }, 400);
       await log("user_updated", target.id, `editou o usuário ${fullName}`);
       return json({ ok: true });
+    }
+
+    if (action === "invite") {
+      const inviteToken = await createInvite(target.id);
+      if (!inviteToken) return json({ error: "Não foi possível gerar o link." }, 400);
+      await log("user_invited", target.id, `gerou o link de acesso de ${target.full_name}`);
+      return json({ ok: true, invite_token: inviteToken });
     }
 
     if (action === "set_password") {

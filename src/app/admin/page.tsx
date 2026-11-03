@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { AccessLink } from "@/components/admin/AccessLink";
+import { AccessMessage } from "@/components/admin/AccessMessage";
 import { useAuth, isStaff } from "@/hooks/useAuth";
-import { callAdmin, fetchAdminData, generatePassword, inputClass, isRecent, labelClass, timeAgo, type AdminExecution, type AdminTemplate, type AdminUnit, type AdminUser } from "@/lib/admin";
+import { callAdmin, fetchAdminData, inputClass, isRecent, labelClass, timeAgo, type AdminExecution, type AdminTemplate, type AdminUnit, type AdminUser } from "@/lib/admin";
 
-const emptyDraft = { company_name: "", location: "", full_name: "", email: "", password: "", checklist_ids: [] as string[] };
+const emptyDraft = { company_name: "", location: "", full_name: "", email: "", checklist_ids: [] as string[] };
 
 function situation(userCount: number, lastExecution: string | null) {
   if (userCount === 0) return { variant: "warning" as const, label: "Sem usuários" };
@@ -31,8 +32,7 @@ export default function AdminClientsPage() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyDraft);
-  const [created, setCreated] = useState<(typeof emptyDraft & { unit_id: string }) | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [created, setCreated] = useState<(typeof emptyDraft & { unit_id: string; token: string | null }) | null>(null);
   const [modalError, setModalError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -89,22 +89,15 @@ export default function AdminClientsPage() {
   const createAccount = async () => {
     setSaving(true);
     setModalError("");
-    const result = await callAdmin<{ unit_id: string }>({ action: "create_client", ...draft });
+    const result = await callAdmin<{ unit_id: string; invite_token: string | null }>({ action: "create_client", ...draft });
     setSaving(false);
     if (result.error || !result.data) {
       setModalError(result.error || "Não foi possível criar a conta.");
       return;
     }
     setCreating(false);
-    setCopied(false);
-    setCreated({ ...draft, unit_id: result.data.unit_id });
+    setCreated({ ...draft, unit_id: result.data.unit_id, token: result.data.invite_token });
     refresh();
-  };
-
-  const copyAccess = async () => {
-    if (!created) return;
-    await navigator.clipboard.writeText(`Olá, ${created.full_name}! Seu acesso ao Checkou:\n\nLink: ${window.location.origin}\nEmail: ${created.email}\nSenha: ${created.password}`);
-    setCopied(true);
   };
 
   const toggleDraftChecklist = (id: string) => {
@@ -129,7 +122,7 @@ export default function AdminClientsPage() {
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">Situação, usuários, checklists e execuções de cada empresa</p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => { setDraft({ ...emptyDraft, password: generatePassword() }); setModalError(""); setCreating(true); }}>
+        <Button variant="primary" size="sm" onClick={() => { setDraft(emptyDraft); setModalError(""); setCreating(true); }}>
           <span className="material-symbols-outlined text-[16px]">add</span>
           Novo cliente
         </Button>
@@ -210,7 +203,7 @@ export default function AdminClientsPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setCreating(false)}>
           <div className="bg-surface-container-lowest rounded-3xl p-7 max-w-lg w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-2xl font-extrabold text-navy">Novo cliente</h3>
-            <p className="text-sm text-on-surface-variant mt-1 mb-5">Cria a empresa e o acesso do dono de uma vez.</p>
+            <p className="text-sm text-on-surface-variant mt-1 mb-5">Cria a empresa e o acesso do dono de uma vez. No fim sai a mensagem pronta com o link para ele criar a senha.</p>
             {modalError && <p className="text-sm text-error font-medium mb-4">{modalError}</p>}
             <div className="space-y-4">
               <div>
@@ -232,13 +225,6 @@ export default function AdminClientsPage() {
                 </div>
               </div>
               <div>
-                <label className={labelClass}>Senha inicial *</label>
-                <div className="flex gap-2">
-                  <input type="text" value={draft.password} onChange={(e) => setDraft({ ...draft, password: e.target.value })} className={inputClass} />
-                  <Button variant="outline" onClick={() => setDraft({ ...draft, password: generatePassword() })}>Gerar</Button>
-                </div>
-              </div>
-              <div>
                 <label className={labelClass}>Checklists desta empresa</label>
                 <div className="flex flex-wrap gap-2">
                   {templates.filter((t) => t.status === "published").map((template) => {
@@ -255,36 +241,25 @@ export default function AdminClientsPage() {
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <Button variant="outline" onClick={() => setCreating(false)}>Cancelar</Button>
-              <Button variant="primary" onClick={createAccount} disabled={saving || !draft.company_name.trim() || !draft.full_name.trim() || !draft.email.trim() || draft.password.length < 6}>{saving ? "Criando..." : "Criar conta"}</Button>
+              <Button variant="primary" onClick={createAccount} disabled={saving || !draft.company_name.trim() || !draft.full_name.trim() || !draft.email.trim()}>{saving ? "Criando..." : "Criar conta"}</Button>
             </div>
           </div>
         </div>
       )}
 
-      {created && (
+      {created && (created.token ? (
+        <AccessMessage title="Conta criada" name={created.full_name} company={created.company_name} email={created.email} token={created.token} onClose={() => setCreated(null)}>
+          <AccessLink unitId={created.unit_id} unitName={created.company_name} label="Acessar a conta" className="inline-flex items-center justify-center gap-2 rounded-full bg-surface-container-lowest text-on-surface ring-[1.5px] ring-inset ring-outline-variant px-6 py-3 text-sm font-bold" />
+        </AccessMessage>
+      ) : (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-container-lowest rounded-3xl p-7 max-w-md w-full shadow-2xl">
-            <span className="w-14 h-14 rounded-2xl bg-lime text-on-lime flex items-center justify-center mb-4">
-              <span className="material-symbols-outlined text-[28px]">check</span>
-            </span>
             <h3 className="text-2xl font-extrabold text-navy">Conta criada</h3>
-            <p className="text-sm text-on-surface-variant mt-1 mb-4">Copie e envie para {created.full_name}. A senha não aparece de novo depois de fechar.</p>
-            <div className="bg-ink text-white rounded-2xl p-4 text-sm space-y-1 mb-5 break-all">
-              <p className="font-bold">{created.company_name}</p>
-              <p>{created.email}</p>
-              <p className="font-mono text-lime">{created.password}</p>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2.5">
-              <Button variant="outline" onClick={() => setCreated(null)}>Fechar</Button>
-              <Button variant="outline" onClick={copyAccess}>
-                <span className="material-symbols-outlined text-[16px]">{copied ? "check" : "content_copy"}</span>
-                {copied ? "Copiado" : "Copiar acesso"}
-              </Button>
-              <AccessLink unitId={created.unit_id} unitName={created.company_name} label="Acessar a conta" className="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-white px-6 py-3 text-sm font-bold" />
-            </div>
+            <p className="text-sm text-on-surface-variant mt-1 mb-5">O link de acesso falhou. Abra o cliente, vá em Usuários e clique no ícone de link do {created.full_name}.</p>
+            <div className="flex justify-end"><Button variant="outline" onClick={() => setCreated(null)}>Fechar</Button></div>
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

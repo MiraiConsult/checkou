@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAuth, isStaff } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils/cn";
+import { AccessMessage } from "@/components/admin/AccessMessage";
 import { callAdmin, generatePassword, inputClass, labelClass, roleLabels, sectorLabels, timeAgo, type AdminTemplate, type AdminUnit, type AdminUser } from "@/lib/admin";
 
 const emptyForm = { full_name: "", email: "", password: "", role: "operator", sector: "geral", unit_id: "", checklist_ids: [] as string[] };
@@ -27,8 +28,7 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [credentials, setCredentials] = useState<{ name: string; email: string; password: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [invite, setInvite] = useState<{ name: string; email: string; token: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
 
   const members = users.filter((u) => u.unit_id === unitId);
@@ -37,7 +37,7 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
   const unitTemplates = templates.filter((t) => t.status === "published" && formUnit && t.unit_ids.includes(formUnit));
 
   const openNew = () => {
-    setForm({ ...emptyForm, password: generatePassword(), unit_id: unitId || "equipe" });
+    setForm({ ...emptyForm, unit_id: unitId || "equipe" });
     setError("");
     setEditing("new");
   };
@@ -54,7 +54,7 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
     const isNew = editing === "new";
     const payload = { full_name: form.full_name, email: form.email, role: form.role, sector: form.sector, unit_id: formUnit, checklist_ids: form.checklist_ids };
     const result = isNew
-      ? await callAdmin({ action: "create", ...payload, password: form.password })
+      ? await callAdmin<{ invite_token: string | null }>({ action: "create", ...payload })
       : await callAdmin({ action: "update", user_id: (editing as AdminUser).id, ...payload });
     if (result.error) {
       setError(result.error);
@@ -69,10 +69,9 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
         return;
       }
     }
-    if (form.password) {
-      setCopied(false);
-      setCredentials({ name: form.full_name, email: form.email, password: form.password });
-    }
+    const token = isNew ? (result.data as { invite_token?: string | null } | undefined)?.invite_token : null;
+    if (token) setInvite({ name: form.full_name, email: form.email, token });
+    else if (isNew) setError("Usuário criado, mas o link de acesso falhou. Use Gerar link na linha dele.");
     setSaving(false);
     setEditing(null);
     onChange();
@@ -98,11 +97,14 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
     setForm({ ...form, checklist_ids: form.checklist_ids.includes(id) ? form.checklist_ids.filter((c) => c !== id) : [...form.checklist_ids, id] });
   };
 
-  const copyCredentials = async () => {
-    if (!credentials) return;
-    await navigator.clipboard.writeText(`Olá, ${credentials.name}! Seu acesso ao Checkou:\n\nLink: ${window.location.origin}\nEmail: ${credentials.email}\nSenha: ${credentials.password}`);
-    setCopied(true);
+  const sendInvite = async (target: AdminUser) => {
+    setError("");
+    const result = await callAdmin<{ invite_token: string }>({ action: "invite", user_id: target.id });
+    if (result.error || !result.data) setError(result.error || "Não foi possível gerar o link.");
+    else setInvite({ name: target.full_name, email: target.email, token: result.data.invite_token });
   };
+
+  const companyName = unitId ? units.find((u) => u.id === unitId)?.name || "sua empresa" : "Checkou";
 
   return (
     <div className="space-y-4">
@@ -136,6 +138,9 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
             <div className="flex items-center gap-2 flex-wrap">
               {!u.active && <Badge variant="error">Desativado</Badge>}
               <Badge variant={u.role === "operator" ? "pending" : "info"}>{roleLabels[u.role] || u.role}</Badge>
+              <button onClick={() => sendInvite(u)} aria-label="Gerar link de acesso" title="Gerar link de acesso" className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+                <span className="material-symbols-outlined text-on-surface-variant text-[18px]">link</span>
+              </button>
               <button onClick={() => openEdit(u)} aria-label="Editar" className="p-2 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
                 <span className="material-symbols-outlined text-on-surface-variant text-[18px]">edit</span>
               </button>
@@ -208,17 +213,21 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
                   <p className="text-xs text-on-surface-variant mt-2">Sem nenhum marcado, a pessoa vê todos os checklists da empresa.</p>
                 </div>
               )}
-              <div className="md:col-span-2">
-                <label className={labelClass}>{editing === "new" ? "Senha *" : "Nova senha (opcional)"}</label>
-                <div className="flex gap-2">
-                  <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo 6 caracteres" className={inputClass} />
-                  <Button variant="outline" onClick={() => setForm({ ...form, password: generatePassword() })}>Gerar</Button>
+              {editing === "new" ? (
+                <p className="md:col-span-2 text-xs text-on-surface-variant">Ao salvar, sai uma mensagem pronta com o link para a pessoa criar a própria senha.</p>
+              ) : (
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Nova senha (opcional)</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Deixe vazio para não mudar" className={inputClass} />
+                    <Button variant="outline" onClick={() => setForm({ ...form, password: generatePassword() })}>Gerar</Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
-              <Button variant="primary" onClick={save} disabled={saving || !form.full_name.trim() || !form.email.trim() || (editing === "new" && form.password.length < 6)}>
+              <Button variant="primary" onClick={save} disabled={saving || !form.full_name.trim() || !form.email.trim()}>
                 {saving ? "Salvando..." : "Salvar"}
               </Button>
             </div>
@@ -226,24 +235,8 @@ export function UsersPanel({ unitId, users, units, templates, onChange }: UsersP
         </div>
       )}
 
-      {credentials && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-navy mb-2">Acesso pronto</h3>
-            <p className="text-sm text-on-surface-variant mb-4">Copie e envie para {credentials.name}. A senha não aparece de novo depois de fechar.</p>
-            <div className="bg-surface-container-low rounded-2xl p-4 text-sm text-on-surface space-y-1 mb-4 break-all">
-              <p>{credentials.email}</p>
-              <p className="font-mono">{credentials.password}</p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setCredentials(null)}>Fechar</Button>
-              <Button variant="primary" className="flex-1" onClick={copyCredentials}>
-                <span className="material-symbols-outlined text-[16px]">{copied ? "check" : "content_copy"}</span>
-                {copied ? "Copiado" : "Copiar acesso"}
-              </Button>
-            </div>
-          </div>
-        </div>
+      {invite && (
+        <AccessMessage title="Acesso pronto" name={invite.name} company={companyName} email={invite.email} token={invite.token} onClose={() => setInvite(null)} />
       )}
 
       {deleteTarget && (
