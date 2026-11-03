@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth, isStaff } from "@/hooks/useAuth";
+import { useAuth, isStaff, canManageUsers } from "@/hooks/useAuth";
+import { UsersPanel } from "@/components/admin/UsersPanel";
+import { fetchAdminData, type AdminTemplate, type AdminUnit, type AdminUser } from "@/lib/admin";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
@@ -38,20 +40,14 @@ const actionIcon: Record<string, string> = {
   user_created: "person_add",
 };
 
-export default function ConfiguracoesPage() {
+function CheckouSettings() {
   const { user } = useAuth();
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState("empresa");
   const [org, setOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
-
-  // Configurações são da equipe Checkou; usuários de cliente não acessam
-  useEffect(() => {
-    if (user && !isStaff(user)) router.push("/");
-  }, [user, router]);
 
   useEffect(() => {
     if (activeTab !== "historico" || !user?.organization_id) return;
@@ -203,4 +199,66 @@ export default function ConfiguracoesPage() {
       )}
     </div>
   );
+}
+
+// Admin de cliente: a equipe da própria empresa, sem sair do sistema
+function CompanySettings({ unitId }: { unitId: string }) {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [units, setUnits] = useState<AdminUnit[]>([]);
+  const [templates, setTemplates] = useState<AdminTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const apply = (data: Awaited<ReturnType<typeof fetchAdminData>>) => {
+    setError(data.error || "");
+    setUsers(data.users);
+    setUnits(data.units);
+    setTemplates(data.templates);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAdminData().then(apply);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <span className="material-symbols-outlined text-primary text-[40px] animate-spin">progress_activity</span>
+      </div>
+    );
+  }
+
+  const unitName = units.find((u) => u.id === unitId)?.name;
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div>
+        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Configurações</p>
+        <h2 className="text-3xl font-extrabold text-navy tracking-tight">Equipe{unitName ? ` de ${unitName}` : ""}</h2>
+        <p className="text-sm text-on-surface-variant mt-1">Crie os acessos das pessoas e defina os checklists de cada uma</p>
+      </div>
+      {error && <p className="text-sm text-error font-medium">{error}</p>}
+      <UsersPanel unitId={unitId} users={users} units={units} templates={templates} onChange={() => fetchAdminData().then(apply)} />
+    </div>
+  );
+}
+
+export default function ConfiguracoesPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && !canManageUsers(user)) router.push("/");
+  }, [user, router]);
+
+  if (!user || !canManageUsers(user)) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <span className="material-symbols-outlined text-primary text-[40px] animate-spin">progress_activity</span>
+      </div>
+    );
+  }
+
+  return isStaff(user) || !user.unit_id ? <CheckouSettings /> : <CompanySettings unitId={user.unit_id} />;
 }

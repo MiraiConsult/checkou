@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils/cn";
 
 type Audience = "all" | "manager" | "staff";
 
+// Trocado na tela: a equipe Checkou usa o Admin, o admin do cliente usa Configurações
+const TEAM = "{equipe}";
+
 interface Tutorial {
   id: string;
   title: string;
@@ -72,9 +75,9 @@ const groups: { title: string; items: Tutorial[] }[] = [
         ],
       },
       {
-        id: "pessoas", title: "Definir os checklists de cada pessoa", icon: "assignment_ind", audience: "manager", href: "/admin",
+        id: "pessoas", title: "Definir os checklists de cada pessoa", icon: "assignment_ind", audience: "manager", href: TEAM,
         steps: [
-          "No Admin, abra a aba Usuários e edite a pessoa.",
+          `${TEAM}, edite a pessoa.`,
           "Marque os checklists dela e salve.",
           "Sem nenhum marcado, a pessoa vê todos os checklists da empresa.",
         ],
@@ -94,9 +97,9 @@ const groups: { title: string; items: Tutorial[] }[] = [
     title: "Equipe",
     items: [
       {
-        id: "usuarios", title: "Criar um usuário", icon: "person_add", audience: "manager", href: "/admin",
+        id: "usuarios", title: "Criar um usuário", icon: "person_add", audience: "manager", href: TEAM,
         steps: [
-          "No Admin, abra a aba Usuários e clique em Criar Usuário.",
+          `${TEAM}, clique em Criar Usuário.`,
           "Administrador cuida da equipe da empresa. Operador só responde checklists.",
           "Salve e clique em Copiar mensagem para enviar o link de primeiro acesso à pessoa.",
           "Se o link venceu ou a pessoa esqueceu a senha, clique no ícone de link na linha dela para gerar outro.",
@@ -168,15 +171,18 @@ export default function TutorialsPage() {
                   {isOpen && (
                     <div className="px-4 pb-5">
                       <ol className="space-y-2.5">
-                        {item.steps.map((step, index) => (
+                        {item.steps.map((raw, index) => {
+                          const step = raw.replace(TEAM, isStaff(user) ? "No Admin, abra o cliente e vá na aba Usuários" : "Abra Configurações");
+                          return (
                           <li key={step} className="flex gap-3 text-sm text-on-surface">
                             <span className="w-6 h-6 rounded-lg bg-surface-container text-xs font-bold flex items-center justify-center shrink-0">{index + 1}</span>
                             {step}
                           </li>
-                        ))}
+                          );
+                        })}
                       </ol>
                       {item.href && (
-                        <Link href={item.href} className="inline-flex items-center gap-1 text-sm font-bold text-primary mt-4">
+                        <Link href={item.href === TEAM ? (isStaff(user) ? "/admin" : "/configuracoes") : item.href} className="inline-flex items-center gap-1 text-sm font-bold text-primary mt-4">
                           Ir para a tela
                           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                         </Link>

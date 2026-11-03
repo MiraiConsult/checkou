@@ -10,14 +10,14 @@ const navItems = [
   { icon: "fact_check", label: "Checklists", href: "/checklists" },
   { icon: "assignment_turned_in", label: "Aprovações", href: "/aprovacoes" },
   { icon: "history", label: "Histórico", href: "/historico" },
-  { icon: "settings", label: "Config", href: "/configuracoes", staffOnly: true },
-  { icon: "admin_panel_settings", label: "Admin", href: "/admin", adminOnly: true },
+  { icon: "settings", label: "Config", href: "/configuracoes", managerOnly: true },
+  { icon: "admin_panel_settings", label: "Admin", href: "/admin", staffOnly: true },
 ];
 
 export function BottomNavBar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const items = navItems.filter((item) => item.adminOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
+  const items = navItems.filter((item) => item.managerOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
 
   return (
     <nav className="md:hidden print:hidden fixed bottom-3 left-3 right-3 bg-ink rounded-3xl px-1.5 py-1.5 z-40">

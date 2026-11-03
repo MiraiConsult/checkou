@@ -19,15 +19,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { user, loading, fetchUser, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  const manager = canManageUsers(user);
+  const staff = isStaff(user);
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
 
   useEffect(() => {
-    if (!loading && !manager) router.push("/");
-  }, [loading, manager, router]);
+    // Admin de cliente cuida da equipe em Configurações, dentro do sistema
+    if (!loading && !staff) router.push(canManageUsers(user) ? "/configuracoes" : "/");
+  }, [loading, staff, user, router]);
 
-  if (!manager) {
+  if (!staff) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-surface">
         <span className="material-symbols-outlined text-primary text-[40px] animate-spin">progress_activity</span>
@@ -35,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const navItems = isStaff(user) ? staffNav : [{ icon: "group", label: "Minha equipe", href: "/admin" }];
+  const navItems = staffNav;
   const isActive = (href: string) => pathname === href || (href === "/admin" && pathname.startsWith("/admin/clientes"));
 
   const nav = (

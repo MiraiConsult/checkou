@@ -15,8 +15,8 @@ const navItems = [
   { icon: "analytics", label: "Relatórios", href: "/relatorios" },
   { icon: "history", label: "Histórico", href: "/historico" },
   { icon: "notifications", label: "Alertas", href: "/configuracoes/alertas", staffOnly: true },
-  { icon: "settings", label: "Configurações", href: "/configuracoes", staffOnly: true },
-  { icon: "admin_panel_settings", label: "Admin", href: "/admin", adminOnly: true },
+  { icon: "settings", label: "Configurações", href: "/configuracoes", managerOnly: true },
+  { icon: "admin_panel_settings", label: "Admin", href: "/admin", staffOnly: true },
 ];
 
 export function SideNavBar() {
@@ -42,7 +42,7 @@ export function SideNavBar() {
   }, []);
 
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
-  const items = navItems.filter((item) => item.adminOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
+  const items = navItems.filter((item) => item.managerOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
   const roleLabel = isStaff(user) ? "Equipe Checkou" : user?.role === "operator" ? "Operador" : "Administrador";
 
   return (

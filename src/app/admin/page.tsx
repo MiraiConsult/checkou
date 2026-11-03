@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -20,7 +19,6 @@ function situation(userCount: number, lastExecution: string | null) {
 }
 
 export default function AdminClientsPage() {
-  const router = useRouter();
   const { user } = useAuth();
   const staff = isStaff(user);
   const [units, setUnits] = useState<AdminUnit[]>([]);
@@ -35,10 +33,6 @@ export default function AdminClientsPage() {
   const [created, setCreated] = useState<(typeof emptyDraft & { unit_id: string; token: string | null }) | null>(null);
   const [modalError, setModalError] = useState("");
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (user?.unit_id) router.replace(`/admin/clientes/${user.unit_id}`);
-  }, [user, router]);
 
   useEffect(() => {
     if (!staff) return;

@@ -153,7 +153,7 @@ export default function DashboardPage() {
                 </div>
               </Link>
               {canManageUsers(user) && (
-                <Link href="/admin" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+                <Link href={staff ? "/admin" : "/configuracoes"} className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
                   <div className="w-10 h-10 rounded-xl bg-secondary-container flex items-center justify-center">
                     <span className="material-symbols-outlined text-secondary text-[20px]">settings</span>
                   </div>
