@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { KPICard } from "@/components/ui/KPICard";
 import { PageHero } from "@/components/ui/PageHero";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isStaff, canManageUsers } from "@/hooks/useAuth";
 import { ScoreRing } from "@/components/approvals/ScoreRing";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const staff = isStaff(user);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -131,15 +132,17 @@ export default function DashboardPage() {
           <h3 className="text-lg font-bold text-navy mb-6">Começar</h3>
           {!hasExecutions ? (
             <div className="space-y-4">
-              <Link href="/checklists/novo" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-primary group-hover:text-white text-[20px]">add</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-navy">Criar seu primeiro checklist</p>
-                  <p className="text-xs text-on-surface-variant">Monte um template com seções e itens</p>
-                </div>
-              </Link>
+              {staff && (
+                <Link href="/checklists/novo" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                    <span className="material-symbols-outlined text-primary group-hover:text-white text-[20px]">add</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-navy">Criar seu primeiro checklist</p>
+                    <p className="text-xs text-on-surface-variant">Monte um template com seções e itens</p>
+                  </div>
+                </Link>
+              )}
               <Link href="/checklists" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
                 <div className="w-10 h-10 rounded-xl bg-tertiary/10 flex items-center justify-center">
                   <span className="material-symbols-outlined text-tertiary text-[20px]">play_arrow</span>
@@ -149,15 +152,17 @@ export default function DashboardPage() {
                   <p className="text-xs text-on-surface-variant">Inicie uma verificação em campo</p>
                 </div>
               </Link>
-              <Link href="/admin" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
-                <div className="w-10 h-10 rounded-xl bg-secondary-container flex items-center justify-center">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">settings</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-navy">Cadastrar clientes</p>
-                  <p className="text-xs text-on-surface-variant">Crie empresas e usuários no Admin</p>
-                </div>
-              </Link>
+              {canManageUsers(user) && (
+                <Link href="/admin" className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+                  <div className="w-10 h-10 rounded-xl bg-secondary-container flex items-center justify-center">
+                    <span className="material-symbols-outlined text-secondary text-[20px]">settings</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-navy">{staff ? "Cadastrar clientes" : "Cadastrar sua equipe"}</p>
+                    <p className="text-xs text-on-surface-variant">{staff ? "Crie empresas e usuários no Admin" : "Crie os acessos das pessoas da empresa"}</p>
+                  </div>
+                </Link>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

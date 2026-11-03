@@ -43,7 +43,7 @@ export function SideNavBar() {
 
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
   const items = navItems.filter((item) => item.adminOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
-  const roleLabel = user?.role === "master" ? "Master" : user?.role === "admin" ? "Admin de Grupo" : "Operador";
+  const roleLabel = isStaff(user) ? "Equipe Checkou" : user?.role === "operator" ? "Operador" : "Administrador";
 
   return (
     <aside className="hidden md:flex print:hidden flex-col w-64 bg-ink rounded-3xl fixed top-4 bottom-4 left-4 z-40 overflow-hidden">
