@@ -60,30 +60,82 @@ export default function ExecuteChecklistPage() {
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  // Load template from Supabase
+  // Draft kept on the device so leaving the page (or the browser closing)
+  // doesn't throw away the answers. Only today's draft is restored.
+  const [draftKey, setDraftKey] = useState<string | null>(null);
+  const [resumedDraft, setResumedDraft] = useState(false);
+
+  // Load template from Supabase, then any draft left on this device
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("checklist_templates").select("id, name, sections, requires_approval, allow_gallery, unit_ids").eq("id", templateId).single()
-      .then(({ data }) => {
-        if (!data) { router.push("/checklists"); return; }
-        startedAt.current = new Date().toISOString();
-        setTemplate(data as TemplateData);
-        const linkedUnits: string[] = data.unit_ids || [];
-        setSelectedUnit(linkedUnits[0] || "");
-        if (linkedUnits.length > 1) {
-          supabase.from("units").select("id, name").in("id", linkedUnits).then(({ data: rows }) => setUnits(rows || []));
-        }
-        const qs: QuestionItem[] = [];
-        const secs = Array.isArray(data.sections) ? data.sections : [];
-        secs.forEach((sec: { name: string; items: ChecklistSectionItem[] }) => {
-          (sec.items || []).forEach((item) => {
-            qs.push({ ...item, section: sec.name });
-          });
+    const load = async () => {
+      const { data } = await supabase.from("checklist_templates").select("id, name, sections, requires_approval, allow_gallery, unit_ids").eq("id", templateId).single();
+      if (!data) { router.push("/checklists"); return; }
+      startedAt.current = new Date().toISOString();
+      setTemplate(data as TemplateData);
+      const linkedUnits: string[] = data.unit_ids || [];
+      setSelectedUnit(linkedUnits[0] || "");
+      if (linkedUnits.length > 1) {
+        supabase.from("units").select("id, name").in("id", linkedUnits).then(({ data: rows }) => setUnits(rows || []));
+      }
+      const qs: QuestionItem[] = [];
+      const secs = Array.isArray(data.sections) ? data.sections : [];
+      secs.forEach((sec: { name: string; items: ChecklistSectionItem[] }) => {
+        (sec.items || []).forEach((item) => {
+          qs.push({ ...item, section: sec.name });
         });
-        setQuestions(qs);
-        setLoading(false);
       });
+      setQuestions(qs);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const key = session?.user.id ? `checkou-draft:${templateId}:${session.user.id}` : null;
+      if (key) restoreDraft(key, qs, linkedUnits);
+      setDraftKey(key);
+      setLoading(false);
+    };
+
+    const restoreDraft = (key: string, qs: QuestionItem[], linkedUnits: string[]) => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (new Date(draft.savedAt).toDateString() !== new Date().toDateString()) {
+          localStorage.removeItem(key);
+          return;
+        }
+        const ids = new Set(qs.map((q) => q.id));
+        const keep = <T,>(obj: Record<string, T> | undefined) =>
+          Object.fromEntries(Object.entries(obj || {}).filter(([id]) => ids.has(id))) as Record<string, T>;
+        const restored = keep<Answer>(draft.answers);
+        if (Object.keys(restored).length === 0) return;
+        setAnswers(restored);
+        setObservations(keep<string>(draft.observations));
+        setPhotos(keep<string[]>(draft.photos));
+        answeredAt.current = keep<string>(draft.answeredAt);
+        if (draft.startedAt) startedAt.current = draft.startedAt;
+        if (draft.selectedUnit && linkedUnits.includes(draft.selectedUnit)) setSelectedUnit(draft.selectedUnit);
+        setResumedDraft(true);
+      } catch { /* corrupt draft: start fresh */ }
+    };
+
+    load();
   }, [templateId, router]);
+
+  useEffect(() => {
+    if (!draftKey || submitted) return;
+    try {
+      if (Object.keys(answers).length === 0 && Object.keys(photos).length === 0) {
+        localStorage.removeItem(draftKey);
+        return;
+      }
+      localStorage.setItem(draftKey, JSON.stringify({
+        answers, observations, photos, selectedUnit,
+        answeredAt: answeredAt.current,
+        startedAt: startedAt.current,
+        savedAt: Date.now(),
+      }));
+    } catch { /* storage full or blocked: keep going without a draft */ }
+  }, [draftKey, answers, observations, photos, selectedUnit, submitted]);
 
   const answerItem = (itemId: string, answer: Answer) => {
     answeredAt.current[itemId] = new Date().toISOString();
@@ -231,6 +283,9 @@ export default function ExecuteChecklistPage() {
       });
     }
 
+    if (draftKey) {
+      try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    }
     setShowPasswordModal(false);
     setSubmitted(true);
     setTimeout(() => router.push("/checklists"), 1500);
@@ -356,6 +411,12 @@ export default function ExecuteChecklistPage() {
         </div>
 
         {uploadError && <p className="text-sm text-error font-medium">{uploadError}</p>}
+        {resumedDraft && (
+          <p className="text-sm text-primary font-medium flex items-center gap-1">
+            <span className="material-symbols-outlined text-[16px]">restore</span>
+            Retomamos as respostas que você já tinha preenchido neste aparelho.
+          </p>
+        )}
 
         {/* Sections */}
         <div className="space-y-6">
@@ -496,6 +557,25 @@ export default function ExecuteChecklistPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Mobile send bar: on the phone the header button is far above the
+          last question, so the send action stays pinned at the bottom. */}
+      <div className="md:hidden print:hidden fixed bottom-3 left-3 right-3 bg-ink rounded-3xl p-2 pl-4 z-40 flex items-center gap-3 shadow-2xl">
+        <div className="flex-1 min-w-0">
+          <p className="text-white text-sm font-black leading-tight">{totalAnswered}/{questions.length} respondidos</p>
+          <p className="text-white/60 text-[10px] leading-tight truncate">
+            {canSubmit
+              ? "Tudo pronto para enviar"
+              : totalAnswered < questions.length
+                ? `Faltam ${questions.length - totalAnswered} itens`
+                : `${missingPhotos.length} foto(s) obrigatória(s) pendente(s)`}
+          </p>
+        </div>
+        <Button variant="primary" className="shrink-0" onClick={handleSubmit} disabled={!canSubmit}>
+          Finalizar e Enviar
+          <span className="material-symbols-outlined text-[18px]">send</span>
+        </Button>
       </div>
     </div>
   );

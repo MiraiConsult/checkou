@@ -19,6 +19,11 @@ export function BottomNavBar() {
   const { user } = useAuth();
   const items = navItems.filter((item) => item.managerOnly ? canManageUsers(user) : !item.staffOnly || isStaff(user));
 
+  // While a checklist is being answered the page shows its own send bar here.
+  // The nav used to sit in that spot and people tapped "Aprovações" thinking
+  // it sent the checklist, leaving the page and losing the answers.
+  if (/^\/checklists\/[^/]+\/execute/.test(pathname)) return null;
+
   return (
     <nav className="md:hidden print:hidden fixed bottom-3 left-3 right-3 bg-ink rounded-3xl px-1.5 py-1.5 z-40">
       <div className="flex items-center justify-around">
