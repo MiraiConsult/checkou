@@ -1,9 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CHECKOU — Gestão Operacional",
   description: "Plataforma SaaS de checklists digitais, gestão operacional e conformidade para empresas multi-unidade.",
+  // iPhone: "Adicionar à Tela de Início" opens full screen, named Checkou
+  appleWebApp: { capable: true, title: "Checkou", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b1630",
 };
 
 export default function RootLayout({
